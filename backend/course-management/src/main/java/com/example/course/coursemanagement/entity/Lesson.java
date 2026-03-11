@@ -44,4 +44,8 @@ public class Lesson {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "course_id", nullable = false)
     private Course course;
+
+    // @OneToOne – Khi xóa Lesson, Quiz liên kết cũng bị xóa theo
+    @OneToOne(mappedBy = "lesson", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private com.example.course.coursemanagement.entity.Quiz quiz;
 }

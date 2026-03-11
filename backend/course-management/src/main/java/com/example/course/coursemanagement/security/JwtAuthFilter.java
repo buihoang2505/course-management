@@ -27,28 +27,23 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                                     FilterChain filterChain)
             throws ServletException, IOException {
 
-        // 1. Lấy header Authorization
         final String authHeader = request.getHeader("Authorization");
 
-        // 2. Nếu không có token → bỏ qua, đi tiếp
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        // 3. Tách token (bỏ "Bearer " ở đầu)
         final String jwt = authHeader.substring(7);
 
         try {
-            // 4. Lấy email từ token
-            final String email = jwtUtil.extractEmail(jwt);
+            // Lấy USERNAME từ token (không phải email)
+            final String username = jwtUtil.extractUsername(jwt);
 
-            // 5. Nếu chưa authenticate
-            if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
 
-                UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
-                // 6. Validate token
                 if (jwtUtil.isTokenValid(jwt, userDetails)) {
                     UsernamePasswordAuthenticationToken authToken =
                             new UsernamePasswordAuthenticationToken(
@@ -57,7 +52,6 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                     authToken.setDetails(
                             new WebAuthenticationDetailsSource().buildDetails(request));
 
-                    // 7. Lưu vào SecurityContext – user đã được xác thực
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                 }
             }

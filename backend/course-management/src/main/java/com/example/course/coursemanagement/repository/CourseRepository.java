@@ -21,6 +21,9 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
     @Query("SELECT c FROM Course c LEFT JOIN FETCH c.lessons WHERE c.id = :id")
     Optional<Course> findByIdWithLessons(Long id);
 
+    // Tìm khóa học theo tên giảng viên (cho InstructorController)
+    List<Course> findByInstructor(String instructor);
+
     // Đếm số học viên của 1 khóa học
     @Query("SELECT COUNT(e) FROM Enrollment e WHERE e.course.id = :courseId")
     Long countEnrollmentsByCourseId(Long courseId);

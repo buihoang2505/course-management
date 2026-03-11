@@ -57,4 +57,15 @@ public class Enrollment {
         COMPLETED,  // Đã hoàn thành
         DROPPED     // Đã hủy đăng ký
     }
+    @Enumerated(EnumType.STRING)
+    private ResultStatus result;
+
+    private Double finalScore;
+
+    private LocalDateTime completedAt;
+
+    public enum ResultStatus {
+        PASSED,
+        FAILED
+    }
 }

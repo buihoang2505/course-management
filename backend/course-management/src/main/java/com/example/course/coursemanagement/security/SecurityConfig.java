@@ -53,6 +53,13 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/certificates/verify/**").permitAll() // public verify
+                        .requestMatchers("/api/test/email/**").permitAll()  // chỉ dùng khi dev
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/reviews/**").permitAll() // public read reviews
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/leaderboard/**").permitAll()
+                        .requestMatchers("/api/instructor/**").authenticated()
+                        .requestMatchers("/api/users/*/role", "/api/users/*/ban", "/api/users/*/unban").authenticated()
+                        .requestMatchers("/api/notifications/admin/**").authenticated()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session

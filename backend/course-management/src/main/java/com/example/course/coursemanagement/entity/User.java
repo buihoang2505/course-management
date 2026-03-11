@@ -1,6 +1,5 @@
 package com.example.course.coursemanagement.entity;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -37,10 +36,12 @@ public class User {
     @NotBlank(message = "Password không được để trống")
     @Size(min = 8, message = "Password phải có ít nhất 8 ký tự")
     @Column(nullable = false)
-    private String password; // Sẽ được hash bằng BCrypt
+    private String password;
 
+    // Role là enum riêng: com.example.course.coursemanagement.entity.Role
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
+    @Builder.Default
     private Role role = Role.STUDENT;
 
     @CreationTimestamp
@@ -50,15 +51,22 @@ public class User {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-    // ============ RELATIONSHIPS ============
+    // ── RELATIONSHIPS ──
 
-    // @OneToOne – Mỗi User có 1 Profile
-    @JsonIgnore
-    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL,
+            fetch = FetchType.LAZY, orphanRemoval = true)
     private Profile profile;
 
-    // @OneToMany – Một User có nhiều Enrollment (đăng ký nhiều khóa học)
-    @JsonIgnore
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @Builder.Default
     private List<Enrollment> enrollments = new ArrayList<>();
+
+    // ── HELPER METHODS ──
+    public boolean isAdmin() {
+        return this.role == Role.ADMIN;
+    }
+
+    public boolean isStudent() {
+        return this.role == Role.STUDENT;
+    }
 }

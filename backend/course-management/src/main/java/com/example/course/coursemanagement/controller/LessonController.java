@@ -22,7 +22,7 @@ public class LessonController {
     // GET /api/lessons/course/{courseId} – lấy bài học theo khóa học
     @GetMapping("/course/{courseId}")
     public ResponseEntity<List<Lesson>> getLessonsByCourse(@PathVariable Long courseId) {
-        return ResponseEntity.ok(lessonRepository.findByCourseIdOrderByOrderNumAsc(courseId));
+        return ResponseEntity.ok(lessonRepository.findByCourseIdOrderByOrderNum(courseId));
     }
 
     // GET /api/lessons/{id} – lấy 1 bài học

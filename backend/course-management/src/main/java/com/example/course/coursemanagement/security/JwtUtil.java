@@ -23,35 +23,33 @@ public class JwtUtil {
     @Value("${app.jwt.expiration}")
     private long expiration;
 
-    // ====== TẠO SECRET KEY ======
     private SecretKey getSigningKey() {
         return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
-    // ====== GENERATE TOKEN ======
+    // ====== GENERATE TOKEN — subject = username ======
     public String generateToken(UserDetails userDetails) {
         Map<String, Object> claims = new HashMap<>();
         return Jwts.builder()
                 .claims(claims)
-                .subject(userDetails.getUsername())   // lưu email vào subject
+                .subject(userDetails.getUsername())   // lưu username vào subject
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + expiration))
                 .signWith(getSigningKey())
                 .compact();
     }
 
-    // ====== LẤY EMAIL TỪ TOKEN ======
-    public String extractEmail(String token) {
+    // ====== LẤY USERNAME TỪ TOKEN ======
+    public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);
     }
 
-    // ====== KIỂM TRA TOKEN CÒN HẠN KHÔNG ======
+    // ====== KIỂM TRA TOKEN HỢP LỆ ======
     public boolean isTokenValid(String token, UserDetails userDetails) {
-        final String email = extractEmail(token);
-        return email.equals(userDetails.getUsername()) && !isTokenExpired(token);
+        final String username = extractUsername(token);
+        return username.equals(userDetails.getUsername()) && !isTokenExpired(token);
     }
 
-    // ====== KIỂM TRA HẾT HẠN ======
     private boolean isTokenExpired(String token) {
         return extractExpiration(token).before(new Date());
     }
@@ -60,7 +58,6 @@ public class JwtUtil {
         return extractClaim(token, Claims::getExpiration);
     }
 
-    // ====== EXTRACT CLAIM GENERIC ======
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
         final Claims claims = extractAllClaims(token);
         return claimsResolver.apply(claims);

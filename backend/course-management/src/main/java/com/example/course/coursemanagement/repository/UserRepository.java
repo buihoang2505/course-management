@@ -25,4 +25,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     // Tìm user kèm theo profile (tránh N+1 query)
     @Query("SELECT u FROM User u LEFT JOIN FETCH u.profile WHERE u.id = :id")
     Optional<User> findByIdWithProfile(Long id);
+
+    // Đếm số user theo role (dùng để kiểm tra còn ít nhất 1 ADMIN)
+    long countByRole(com.example.course.coursemanagement.entity.Role role);
 }

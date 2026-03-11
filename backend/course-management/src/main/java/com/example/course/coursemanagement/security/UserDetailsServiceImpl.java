@@ -7,6 +7,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -18,15 +19,20 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     private final UserRepository userRepository;
 
     // Spring Security gọi method này để load user khi authenticate
-    // "username" ở đây thực ra là email của user
+    // Dùng username (không phải email) để đăng nhập
     @Override
-    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        User user = userRepository.findByEmail(email)
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException(
-                        "Không tìm thấy user với email: " + email));
+                        "Không tìm thấy user với username: " + username));
+
+        // Chặn user bị ban — Spring Security sẽ ném DisabledException
+        if (user.getRole().name().equals("BANNED")) {
+            throw new DisabledException("Tài khoản của bạn đã bị khóa!");
+        }
 
         return new org.springframework.security.core.userdetails.User(
-                user.getEmail(),
+                user.getUsername(),
                 user.getPassword(),
                 List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()))
         );

@@ -11,10 +11,11 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class AuthResponse {
-    private Long id;
+    private Long   id;        // ← cần thiết để frontend gọi API theo userId
     private String token;
     private String email;
     private String username;
     private String role;
     private String message;
+    private String avatar;  // URL avatar từ profile
 }
