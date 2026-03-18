@@ -48,10 +48,7 @@ public class LeaderboardService {
                     .build());
         }
 
-        // Sort lại theo totalPoints
-        result.sort((a, b) -> Double.compare(b.getTotalPoints(), a.getTotalPoints()));
-        for (int i = 0; i < result.size(); i++) result.get(i).setRank(i + 1);
-
+        // Rank đã được gán đúng thứ tự từ DB query (ORDER BY totalPoints DESC)
         return result;
     }
 }

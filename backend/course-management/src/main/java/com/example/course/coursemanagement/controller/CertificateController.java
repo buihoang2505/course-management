@@ -3,7 +3,11 @@ package com.example.course.coursemanagement.controller;
 import com.example.course.coursemanagement.dto.CertificateDTO;
 import com.example.course.coursemanagement.service.CertificateService;
 import jakarta.persistence.EntityNotFoundException;
+import com.example.course.coursemanagement.repository.UserRepository;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,6 +21,7 @@ import java.util.Map;
 public class CertificateController {
 
     private final CertificateService certService;
+    private final UserRepository       userRepository;
 
     // ── Lấy tất cả chứng chỉ của tôi ──────────────────────────
     @GetMapping("/my")
@@ -35,31 +40,46 @@ public class CertificateController {
         return ResponseEntity.ok(dto);
     }
 
-    // ── Kiểm tra điều kiện ─────────────────────────────────────
+    // ── Kiểm tra điều kiện (chi tiết) ──────────────────────────
     @GetMapping("/eligibility")
-    public ResponseEntity<Map<String, Boolean>> checkEligibility(
+    public ResponseEntity<Map<String, Object>> checkEligibility(
             @RequestParam Long userId,
             @RequestParam Long courseId) {
-        boolean eligible = certService.checkEligibility(userId, courseId);
-        return ResponseEntity.ok(Map.of("eligible", eligible));
+        return ResponseEntity.ok(certService.checkEligibilityDetail(userId, courseId));
     }
 
-    // ── Cấp chứng chỉ ──────────────────────────────────────────
+    // ── Cấp chứng chỉ — userId từ JWT ──────────────────────────
     @PostMapping("/claim")
     public ResponseEntity<?> claimCertificate(
-            @RequestParam Long userId,
-            @RequestParam Long courseId) {
+            @RequestParam Long courseId,
+            @AuthenticationPrincipal UserDetails principal) {
         try {
+            Long userId = resolveUserId(principal);
             CertificateDTO dto = certService.tryIssueCertificate(userId, courseId);
             if (dto == null) {
-                return ResponseEntity.badRequest().body(Map.of(
-                        "error", "Bạn chưa đủ điều kiện nhận chứng chỉ. " +
-                                "Hãy hoàn thành tất cả bài học và pass tất cả quiz."));
+                // Lấy chi tiết để trả về lý do cụ thể
+                Map<String, Object> detail = certService.checkEligibilityDetail(userId, courseId);
+                boolean allLessonsDone = Boolean.TRUE.equals(detail.get("allLessonsDone"));
+                boolean allQuizPassed  = Boolean.TRUE.equals(detail.get("allQuizPassed"));
+                String reason = !allLessonsDone
+                        ? "Chua hoan thanh het bai hoc (" + detail.get("completedLessons")
+                        + "/" + detail.get("totalLessons") + ")"
+                        : !allQuizPassed
+                        ? "Chua pass het quiz (" + detail.get("passedQuizzes")
+                        + "/" + detail.get("totalQuizzes") + ")"
+                        : "Diem trung binh quiz chua dat 50%";
+                return ResponseEntity.badRequest().body(Map.of("error", reason));
             }
             return ResponseEntity.ok(dto);
         } catch (EntityNotFoundException e) {
             return ResponseEntity.notFound().build();
         }
+    }
+
+    private Long resolveUserId(UserDetails principal) {
+        return userRepository.findByUsername(principal.getUsername())
+                .orElseThrow(() -> new EntityNotFoundException("User not found"))
+                .getId();
     }
 
     // ── Verify chứng chỉ bằng code (PUBLIC) ────────────────────

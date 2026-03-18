@@ -24,7 +24,11 @@ public class UserService {
     private final QuizAttemptRepository attemptRepository;
     private final LessonCompletionRepository completionRepository;
     private final CertificateRepository certificateRepository;
-    private final NotificationRepository notificationRepository;
+    private final NotificationRepository       notificationRepository;
+    private final ReviewRepository               reviewRepository;
+    private final GradeRepository                gradeRepository;
+    private final EnrollmentRepository           enrollmentRepository;
+    private final InstructorApplicationRepository appRepository;
 
     public User createUser(User user) {
         if (userRepository.existsByEmail(user.getEmail()))
@@ -102,6 +106,19 @@ public class UserService {
         return userRepository.save(user);
     }
 
+    // ── Đổi username ──
+    public User changeUsername(Long id, String newUsername) {
+        User user = getUserById(id);
+        if (user.getUsername().equals(newUsername)) return user; // không có gì thay đổi
+        if (userRepository.existsByUsername(newUsername))
+            throw new IllegalArgumentException("Tên đăng nhập \"" + newUsername + "\" đã được sử dụng!");
+        String oldUsername = user.getUsername();
+        user.setUsername(newUsername);
+        User saved = userRepository.save(user);
+        log.info("Username changed: userId={} {} → {}", id, oldUsername, newUsername);
+        return saved;
+    }
+
     // ── Ban user ──
     public User banUser(Long id) {
         User user = getUserById(id);
@@ -124,10 +141,23 @@ public class UserService {
 
     public void deleteUser(Long id) {
         User user = getUserById(id);
+        // Xóa theo thứ tự: child trước, parent sau
+        // 1. Dữ liệu học tập
         attemptRepository.deleteByUserId(id);
         completionRepository.deleteByUserId(id);
+        // 2. Điểm số — Grade gắn với Enrollment, xóa trước khi xóa enrollment
+        gradeRepository.findByEnrollment_User_Id(id)
+                .forEach(g -> gradeRepository.deleteById(g.getId()));
+        // 3. Enrollment
+        enrollmentRepository.deleteByUserId(id);
+        // 4. Chứng chỉ và review
         certificateRepository.deleteByUserId(id);
+        reviewRepository.deleteByUserId(id);
+        // 5. Đơn giảng viên
+        appRepository.deleteByUserId(id);
+        // 6. Thông báo
         notificationRepository.deleteByUserId(id);
+        // 7. Xóa user cuối cùng
         userRepository.delete(user);
         log.info("Deleted user id={} username={}", id, user.getUsername());
     }

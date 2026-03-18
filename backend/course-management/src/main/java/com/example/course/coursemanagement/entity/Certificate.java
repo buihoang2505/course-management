@@ -14,10 +14,11 @@ import java.util.UUID;
 @Entity
 @Table(
         name = "certificates",
-        uniqueConstraints = @UniqueConstraint(
-                name = "uk_cert_user_course",
-                columnNames = {"user_id", "course_id"}
-        )
+        uniqueConstraints = @UniqueConstraint(name = "uk_cert_user_course", columnNames = {"user_id", "course_id"}),
+        indexes = {
+                @Index(name = "idx_cert_user",   columnList = "user_id"),
+                @Index(name = "idx_cert_course", columnList = "course_id")
+        }
 )
 @Data
 @NoArgsConstructor

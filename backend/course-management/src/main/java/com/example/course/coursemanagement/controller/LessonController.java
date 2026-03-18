@@ -19,10 +19,21 @@ public class LessonController {
     private final LessonRepository lessonRepository;
     private final CourseService courseService;
 
-    // GET /api/lessons/course/{courseId} – lấy bài học theo khóa học
+    // GET /api/lessons/course/{courseId} – lấy bài học theo khóa học (DTO để tránh lazy load)
     @GetMapping("/course/{courseId}")
-    public ResponseEntity<List<Lesson>> getLessonsByCourse(@PathVariable Long courseId) {
-        return ResponseEntity.ok(lessonRepository.findByCourseIdOrderByOrderNum(courseId));
+    public ResponseEntity<List<java.util.Map<String, Object>>> getLessonsByCourse(@PathVariable Long courseId) {
+        List<java.util.Map<String, Object>> dtos = lessonRepository.findByCourseIdOrderByOrderNum(courseId)
+                .stream()
+                .map(l -> java.util.Map.<String, Object>of(
+                        "id",        l.getId(),
+                        "title",     l.getTitle(),
+                        "content",   l.getContent()  != null ? l.getContent()  : "",
+                        "orderNum",  l.getOrderNum(),
+                        "videoUrl",  l.getVideoUrl() != null ? l.getVideoUrl() : "",
+                        "createdAt", l.getCreatedAt()!= null ? l.getCreatedAt().toString() : ""
+                ))
+                .collect(java.util.stream.Collectors.toList());
+        return ResponseEntity.ok(dtos);
     }
 
     // GET /api/lessons/{id} – lấy 1 bài học

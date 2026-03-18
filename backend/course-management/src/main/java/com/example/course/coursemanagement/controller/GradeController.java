@@ -16,28 +16,23 @@ public class GradeController {
 
     private final GradeService gradeService;
 
-    // ======================================================
-    // POST – Tính điểm TỰ ĐỘNG dựa trên tiến độ bài học
-    // Body: { "enrollmentId": 1 }
-    // ======================================================
+    // POST /api/grades/assign — Admin tính lại hoặc nhập thủ công
+    // Body: { enrollmentId, score? (optional), feedback? }
     @PostMapping("/assign")
     public ResponseEntity<?> assignGrade(@RequestBody Map<String, Object> body) {
         try {
             Long enrollmentId = Long.valueOf(body.get("enrollmentId").toString());
 
-            // Nếu có score trong body → nhập thủ công; không có → tính tự động
             if (body.containsKey("score") && body.get("score") != null
                     && !body.get("score").toString().isBlank()) {
-
+                // Nhập thủ công
                 Double score    = Double.valueOf(body.get("score").toString());
                 String feedback = body.getOrDefault("feedback", "").toString();
                 return ResponseEntity.ok(gradeService.assignGradeManual(enrollmentId, score, feedback));
-
             } else {
-                // Tính tự động
+                // Tính tự động từ quiz
                 return ResponseEntity.ok(gradeService.calculateAutoGrade(enrollmentId));
             }
-
         } catch (IllegalStateException | IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
@@ -45,9 +40,7 @@ public class GradeController {
         }
     }
 
-    // ======================================================
-    // POST – Tính điểm tự động theo enrollmentId (explicit)
-    // ======================================================
+    // POST /api/grades/calculate/{enrollmentId} — tính lại từ quiz
     @PostMapping("/calculate/{enrollmentId}")
     public ResponseEntity<?> calculateGrade(@PathVariable Long enrollmentId) {
         try {
@@ -57,9 +50,6 @@ public class GradeController {
         }
     }
 
-    // ======================================================
-    // GET – Xem điểm theo enrollment
-    // ======================================================
     @GetMapping("/enrollment/{enrollmentId}")
     public ResponseEntity<?> getGradeByEnrollment(@PathVariable Long enrollmentId) {
         try {
@@ -69,17 +59,11 @@ public class GradeController {
         }
     }
 
-    // ======================================================
-    // GET – Xem tất cả điểm của user
-    // ======================================================
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<Grade>> getUserGrades(@PathVariable Long userId) {
         return ResponseEntity.ok(gradeService.getUserGrades(userId));
     }
 
-    // ======================================================
-    // GET – Điểm trung bình khóa học
-    // ======================================================
     @GetMapping("/course/{courseId}/average")
     public ResponseEntity<Map<String, Double>> getCourseAverage(@PathVariable Long courseId) {
         Double avg = gradeService.getCourseAverageScore(courseId);

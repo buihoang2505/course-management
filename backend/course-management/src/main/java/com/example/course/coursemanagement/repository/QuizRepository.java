@@ -72,4 +72,10 @@ public interface QuizRepository extends JpaRepository<Quiz, Long> {
 
     /** Kiểm tra lesson đã có quiz chưa — enforce 1 lesson = 1 quiz. */
     boolean existsByLessonId(Long lessonId);
+
+    /** Đếm tổng quiz active trong 1 course — dùng để tính finalScore. */
+    @Query("SELECT COUNT(q) FROM Quiz q " +
+            "WHERE q.lesson.course.id = :courseId " +
+            "AND (q.isActive = true OR q.isActive IS NULL)")
+    long countActiveByCourseId(@Param("courseId") Long courseId);
 }

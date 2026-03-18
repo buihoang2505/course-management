@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#3B82F6"></stop>
+      <stop offset="100%" stop-color="#06B6D4"></stop>
+    </linearGradient>
+  </defs>
+
+  <!-- background -->
+  <rect width="64" height="64" rx="14" fill="url(#g)"></rect>
+
+  <!-- flow arrow -->
+  <path d="M18 40 C28 22, 40 42, 48 26" stroke="white" stroke-width="3" fill="none" stroke-linecap="round"></path>
+
+  <!-- arrow head -->
+  <path d="M46 26 L52 26 L49 21 Z" fill="white"></path>
+
+  <!-- EF -->
+  <text x="50%" y="50%" text-anchor="middle" dominant-baseline="middle" font-family="Poppins, Inter, Arial" font-size="24" font-weight="700" fill="white">
+        EF
+  </text>
+
+</svg>

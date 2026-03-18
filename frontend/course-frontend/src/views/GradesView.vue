@@ -92,12 +92,14 @@
                   <div class="gc-title">{{ e.course?.title }}</div>
                   <div class="gc-meta">{{ e.course?.instructor || '—' }}</div>
                   <div v-if="e.grade?.feedback" class="gc-fb">💬 {{ e.grade.feedback }}</div>
+                  <div v-else-if="!e.grade" class="gc-fb" style="color:var(--muted)">Chưa có điểm — hoàn thành quiz để nhận điểm</div>
                   <div class="gc-date">📅 {{ fmt(e.enrolledAt) }}</div>
                 </div>
               </div>
               <div class="gc-right">
-                <div :class="['gc-score', sc(e.grade.score)]">{{ e.grade.score?.toFixed(1) }}</div>
-                <div class="gc-rank">{{ rank(e.grade.score) }}</div>
+                <div v-if="e.grade?.score != null" :class="['gc-score', sc(e.grade.score)]">{{ e.grade.score.toFixed(1) }}</div>
+                <div v-else class="gc-score sc-none">—</div>
+                <div class="gc-rank">{{ e.grade?.score != null ? rank(e.grade.score) : 'Chưa có' }}</div>
               </div>
             </div>
           </div>
@@ -262,6 +264,7 @@ onMounted(load)
 .gc-fb    { font-size:.73rem; color:var(--text2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .gc-date  { font-size:.71rem; color:var(--muted); }
 .gc-right { display:flex; flex-direction:column; align-items:center; flex-shrink:0; gap:.25rem; }
+.sc-none  { background:var(--surface2); color:var(--muted); }
 .gc-score { font-size:1.5rem; font-weight:800; padding:.35rem .6rem; border-radius:9px; min-width:56px; text-align:center; }
 .gc-rank  { font-size:.68rem; color:var(--muted); font-weight:600; }
 .sc-exc  { background:var(--green-light);  color:var(--green); }

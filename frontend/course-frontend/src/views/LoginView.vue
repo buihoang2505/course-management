@@ -94,11 +94,13 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useCartStore } from '../stores/cart'
 import api from '../services/api'
 
-const router = useRouter()
-const route  = useRoute()
-const auth   = useAuthStore()
+const router     = useRouter()
+const route      = useRoute()
+const auth       = useAuthStore()
+const cartStore  = useCartStore()
 
 const form        = reactive({ username: '', password: '' })
 const serverError = ref('')
@@ -143,6 +145,7 @@ async function handleLogin() {
       password: form.password
     })
     auth.login(r.data)
+    cartStore.reload()   // Nạp cart của user vừa login (key riêng theo userId)
     router.push(auth.isAdmin ? '/admin' : '/courses')
   } catch (e) {
     serverError.value =

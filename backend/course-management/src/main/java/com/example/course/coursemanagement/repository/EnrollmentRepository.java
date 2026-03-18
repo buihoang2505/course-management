@@ -37,6 +37,10 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
     @Query("SELECT COUNT(e) FROM Enrollment e WHERE e.course.id = :courseId")
     long countByCourseId(@Param("courseId") Long courseId);
 
+    /** Batch: enroll count cho tất cả courses — fix N+1 */
+    @Query("SELECT e.course.id, COUNT(e) FROM Enrollment e GROUP BY e.course.id")
+    List<Object[]> countGroupedByCourse();
+
     // Xóa tất cả enrollment của user (dùng khi xóa user)
     @Modifying
     @Query("DELETE FROM Enrollment e WHERE e.user.id = :userId")

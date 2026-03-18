@@ -2,6 +2,8 @@ package com.example.course.coursemanagement.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -43,6 +45,16 @@ public class Course {
     @Column(nullable = false)
     private CourseStatus status = CourseStatus.ACTIVE;
 
+    // Giá khóa học (VNĐ). NULL hoặc 0 = miễn phí
+    // KHÔNG dùng @Builder.Default — gây bug: Lombok reset giá trị từ DB về default
+    @Column(name = "price", columnDefinition = "BIGINT DEFAULT 0")
+    private Long price = 0L;
+
+    // Tự động sync với price — true nếu price=0, false nếu price>0
+    // KHÔNG dùng @Builder.Default — gây bug với Hibernate
+    @Column(name = "is_free", nullable = false, columnDefinition = "TINYINT(1) DEFAULT 1")
+    private Boolean isFree = true;
+
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;
@@ -62,6 +74,13 @@ public class Course {
     @JsonIgnore
     @OneToMany(mappedBy = "course", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Enrollment> enrollments = new ArrayList<>();
+
+    // ── Tự động sync isFree từ price trước mỗi lần save ──────────
+    @PrePersist
+    @PreUpdate
+    public void syncIsFree() {
+        this.isFree = (this.price == null || this.price == 0L);
+    }
 
     // ============ ENUM ============
 

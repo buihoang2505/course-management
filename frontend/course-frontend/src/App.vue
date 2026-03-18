@@ -35,10 +35,16 @@
         </template>
 
 
-        <!-- Instructor link -->
-        <router-link v-if="auth.user?.role === 'INSTRUCTOR'" to="/instructor" class="nav-item instructor-link">
+        <!-- Instructor link (chỉ INSTRUCTOR mới thấy) -->
+        <router-link v-if="auth.isInstructor" to="/instructor" class="nav-item instructor-link">
           <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           Giảng viên
+        </router-link>
+
+        <!-- Apply Instructor link (chỉ STUDENT mới thấy) -->
+        <router-link v-if="auth.user?.role === 'STUDENT'" to="/apply-instructor" class="nav-item apply-inst-link">
+          <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>
+          Trở thành GV
         </router-link>
 
         <!-- Admin link -->
@@ -49,6 +55,29 @@
       </div>
 
       <div class="nav-right">
+        <!-- Cart -->
+        <router-link to="/cart" class="cart-nav-btn" title="Giỏ hàng"
+                     v-if="!auth.isAdmin && auth.user?.role === 'STUDENT'">
+          <svg width="18" height="18" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+               viewBox="0 0 24 24">
+            <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+          </svg>
+          <span v-if="cartCount > 0" class="cart-badge">{{ cartCount }}</span>
+        </router-link>
+
+        <!-- Wishlist -->
+        <router-link to="/wishlist" class="wish-nav-btn" title="Yêu thích"
+                     v-if="!auth.isAdmin && auth.user?.role === 'STUDENT'">
+          <svg width="18" height="18" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+               viewBox="0 0 24 24">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+          </svg>
+          <span v-if="wishCount > 0" class="wish-badge">{{ wishCount }}</span>
+        </router-link>
+
         <!-- Notification Bell -->
         <div class="notif-wrap" ref="notifRef">
           <button class="notif-btn" @click="toggleNotif" :class="{ active: showNotif }" title="Thông báo">
@@ -127,11 +156,7 @@
     </nav>
 
     <main :class="{ 'with-nav': auth.isLoggedIn && !isLanding, 'is-landing': isLanding }">
-      <router-view v-slot="{ Component }">
-        <transition name="fade" mode="out-in">
-          <component :is="Component" />
-        </transition>
-      </router-view>
+      <router-view :key="$route.fullPath" />
     </main>
   </div>
 </template>
@@ -139,20 +164,42 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from './stores/auth'
+import { useCartStore } from './stores/cart'
 import { useRouter, useRoute } from 'vue-router'
 import api from './services/api'
 
-const auth   = useAuthStore()
+const auth      = useAuthStore()
+const cartStore = useCartStore()
 const router = useRouter()
 const route  = useRoute()
 
 const isLanding = computed(() => route.meta?.landing === true)
 
 const initials = computed(() => (auth.user?.username || 'U').charAt(0).toUpperCase())
-const handleLogout = () => { auth.logout(); router.push('/login') }
+const handleLogout = () => { auth.logout(); cartStore.clear(); router.push('/login') }
 
 // ── Notifications ──
 const showNotif     = ref(false)
+// Reactive cart/wishlist count — cập nhật khi localStorage thay đổi
+// Cart count — reactive vì cartStore là Pinia (tự track)
+const cartCount = computed(() => cartStore.count)
+
+// Wishlist count — sync từ localStorage, cập nhật khi navigate
+const wishCount = ref(JSON.parse(localStorage.getItem('wl') || '[]').length)
+
+function refreshWishCount() {
+  try { wishCount.value = JSON.parse(localStorage.getItem('wl') || '[]').length }
+  catch { wishCount.value = 0 }
+}
+
+// Cập nhật khi tab khác thay đổi localStorage
+window.addEventListener('storage', refreshWishCount)
+// Cập nhật khi component trong cùng tab dispatch event
+window.addEventListener('localStorageUpdated', refreshWishCount)
+onUnmounted(() => {
+  window.removeEventListener('storage', refreshWishCount)
+  window.removeEventListener('localStorageUpdated', refreshWishCount)
+})
 const mobileMenuOpen = ref(false)
 const notifications = ref([])
 const unreadCount   = ref(0)
@@ -286,6 +333,27 @@ body { font-family:'Plus Jakarta Sans',sans-serif; background:var(--bg); color:v
 .nav-item.router-link-active { background:var(--accent-light); color:var(--accent); font-weight:600; }
 .admin-link.router-link-active { background:var(--purple-light); color:var(--purple); }
 .nav-right  { display:flex; align-items:center; gap:.55rem; margin-left:auto; flex-shrink:0; }
+.cart-nav-btn, .wish-nav-btn {
+  position:relative; width:36px; height:36px;
+  display:flex; align-items:center; justify-content:center;
+  border-radius:50%; background:none;
+  color:var(--muted); transition:all .15s; text-decoration:none;
+}
+.cart-nav-btn:hover, .cart-nav-btn.router-link-active {
+  color:var(--accent); background:var(--accent-light);
+}
+.wish-nav-btn:hover, .wish-nav-btn.router-link-active {
+  color:#ef4444; background:var(--red-light);
+}
+.cart-badge, .wish-badge {
+  position:absolute; top:-2px; right:-2px;
+  min-width:17px; height:17px; padding:0 4px;
+  border-radius:100px; font-size:.62rem; font-weight:700;
+  display:flex; align-items:center; justify-content:center;
+  border:2px solid var(--surface);
+}
+.cart-badge { background:var(--accent); color:#fff; }
+.wish-badge { background:#ef4444; color:#fff; }
 
 /* ── NOTIFICATION ── */
 .notif-wrap { position:relative; }
@@ -445,4 +513,7 @@ main.is-landing { padding:0; overflow:visible; width:100%; }
 ::-webkit-scrollbar       { width:5px; height:5px; }
 ::-webkit-scrollbar-track { background:transparent; }
 ::-webkit-scrollbar-thumb { background:var(--border2); border-radius:3px; }
+
+.apply-inst-link { border: 1.5px dashed var(--accent) !important; color: var(--accent) !important; }
+.apply-inst-link:hover { background: var(--accent-light) !important; border-style: solid !important; }
 </style>

@@ -1,10 +1,14 @@
 package com.example.course.coursemanagement.entity;
 
 import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.*;
 
 @Entity
-@Table(name = "attempt_answers")
+@Table(name = "attempt_answers", indexes = {
+        @Index(name = "idx_aa_attempt",  columnList = "attempt_id"),
+        @Index(name = "idx_aa_question", columnList = "question_id")
+})
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -22,6 +26,7 @@ public class AttemptAnswer {
 
     // ── RELATIONSHIPS ──────────────────────────────────
 
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "attempt_id", nullable = false)
     private QuizAttempt attempt;

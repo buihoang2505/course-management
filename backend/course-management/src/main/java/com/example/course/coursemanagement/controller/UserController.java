@@ -75,6 +75,25 @@ public class UserController {
         }
     }
 
+    // PATCH /api/users/{id}/username — đổi username
+    @PatchMapping("/{id}/username")
+    public ResponseEntity<?> changeUsername(@PathVariable Long id,
+                                            @RequestBody Map<String, String> body) {
+        String username = body.getOrDefault("username", "").trim();
+        if (username.isBlank() || !username.matches("^[a-zA-Z0-9_]{3,30}$"))
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Username không hợp lệ (3–30 ký tự, chỉ dùng chữ/số/_)"));
+        try {
+            User user = userService.changeUsername(id, username);
+            return ResponseEntity.ok(Map.of(
+                    "message",  "Đổi tên đăng nhập thành công!",
+                    "username", user.getUsername()
+            ));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
     // PATCH /api/users/{id}/unban — trả về STUDENT
     @PatchMapping("/{id}/unban")
     public ResponseEntity<?> unbanUser(@PathVariable Long id) {

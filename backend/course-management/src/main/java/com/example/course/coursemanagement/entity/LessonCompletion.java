@@ -7,8 +7,11 @@ import java.time.LocalDateTime;
 @Entity
 @Table(
         name = "lesson_completions",
-        // Mỗi user chỉ mark 1 lần cho 1 lesson
-        uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "lesson_id"})
+        uniqueConstraints = @UniqueConstraint(name = "uk_lc_user_lesson", columnNames = {"user_id", "lesson_id"}),
+        indexes = {
+                @Index(name = "idx_lc_user",   columnList = "user_id"),
+                @Index(name = "idx_lc_lesson", columnList = "lesson_id")
+        }
 )
 @Data
 public class LessonCompletion {

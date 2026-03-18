@@ -37,6 +37,22 @@ public interface QuizAttemptRepository extends JpaRepository<QuizAttempt, Long> 
 
     // Kiểm tra user đã pass quiz chưa
     boolean existsByQuizIdAndUserIdAndPassedTrue(Long quizId, Long userId);
+
+    // Lấy điểm cao nhất của từng quiz trong 1 course cho 1 user
+    // Dùng để tính finalScore = TB(best scores) thuần quiz
+    @Query("SELECT MAX(a.score) FROM QuizAttempt a " +
+            "WHERE a.user.id = :userId " +
+            "AND a.quiz.lesson.course.id = :courseId " +
+            "GROUP BY a.quiz.id")
+    List<Double> findBestScoresPerQuizByCourse(@Param("userId") Long userId,
+                                               @Param("courseId") Long courseId);
+
+    // Đếm số quiz trong 1 course có ít nhất 1 attempt của user
+    @Query("SELECT COUNT(DISTINCT a.quiz.id) FROM QuizAttempt a " +
+            "WHERE a.user.id = :userId " +
+            "AND a.quiz.lesson.course.id = :courseId")
+    long countDistinctQuizAttemptedByCourse(@Param("userId") Long userId,
+                                            @Param("courseId") Long courseId);
     // Thêm method này vào QuizAttemptRepository.java (đã có sẵn)
 
     // Lấy lần làm có điểm cao nhất (dùng tính avg certificate)
@@ -46,4 +62,9 @@ public interface QuizAttemptRepository extends JpaRepository<QuizAttempt, Long> 
     @Modifying
     @Query("DELETE FROM QuizAttempt a WHERE a.user.id = :userId")
     void deleteByUserId(@Param("userId") Long userId);
+
+    /** IDs của attempts thuộc user+course — dùng cho unenroll */
+    @Query("SELECT a.id FROM QuizAttempt a WHERE a.user.id = :userId AND a.quiz.lesson.course.id = :courseId")
+    List<Long> findAttemptIdsByUserAndCourse(@Param("userId") Long userId,
+                                             @Param("courseId") Long courseId);
 }

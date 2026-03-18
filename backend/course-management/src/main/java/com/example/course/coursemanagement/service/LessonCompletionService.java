@@ -35,12 +35,16 @@ public class LessonCompletionService {
         User user = userRepo.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy user!"));
 
+        // Kiểm tra user đã enroll khóa học này chưa
+        Long courseId = lesson.getCourse().getId();
+        if (!enrollmentRepo.existsByUserIdAndCourseId(userId, courseId)) {
+            throw new IllegalStateException("Bạn chưa đăng ký khóa học này!");
+        }
+
         LessonCompletion completion = new LessonCompletion();
         completion.setUser(user);
         completion.setLesson(lesson);
         completionRepo.save(completion);
-
-        Long courseId = lesson.getCourse().getId();
         return calculateAndAutoComplete(userId, courseId, user);
     }
 

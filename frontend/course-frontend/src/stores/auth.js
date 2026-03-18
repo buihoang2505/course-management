@@ -75,6 +75,8 @@ export const useAuthStore = defineStore('auth', () => {
         user.value  = null
         localStorage.removeItem('token')
         localStorage.removeItem('user')
+        // Xóa cart khi logout — tránh user khác thừa hưởng giỏ hàng
+        localStorage.removeItem('cart')
     }
 
     function refreshAvatar() {

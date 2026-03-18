@@ -39,21 +39,22 @@ public class ReviewService {
     // ── Thống kê rating của 1 khóa học ─────────────────────
     @Transactional(readOnly = true)
     public Map<String, Object> getStats(Long courseId) {
-        Object[] res = reviewRepo.countAndAvgByCourseId(courseId);
-        long count  = res[0] != null ? ((Number) res[0]).longValue() : 0;
-        double avg  = res[1] != null ? ((Number) res[1]).doubleValue() : 0.0;
+        // Chỉ lấy rating integers — không lazy-load entity nào, không thể 500
+        List<Integer> ratings = reviewRepo.findRatingsByCourseId(courseId);
 
-        // Phân bổ từng sao
-        List<Review> reviews = reviewRepo.findByCourseIdWithUser(courseId);
+        long   count = ratings.size();
+        double avg   = ratings.isEmpty() ? 0.0
+                : ratings.stream().mapToInt(Integer::intValue).average().orElse(0.0);
+
         Map<Integer, Long> dist = new HashMap<>();
         for (int i = 1; i <= 5; i++) {
-            int star = i;
-            dist.put(i, reviews.stream().filter(r -> r.getRating() == star).count());
+            final int star = i;
+            dist.put(star, ratings.stream().filter(r -> r == star).count());
         }
 
         Map<String, Object> result = new HashMap<>();
         result.put("totalReviews", count);
-        result.put("avgRating", Math.round(avg * 10.0) / 10.0);
+        result.put("avgRating",    Math.round(avg * 10.0) / 10.0);
         result.put("distribution", dist);
         return result;
     }
@@ -111,5 +112,12 @@ public class ReviewService {
     public List<ReviewDTO> getAll() {
         return reviewRepo.findAllWithDetails()
                 .stream().map(ReviewDTO::from).collect(Collectors.toList());
+    }
+    // Lấy userId từ username (dùng cho controller khi cần resolve từ JWT principal)
+    @Transactional(readOnly = true)
+    public Long getUserIdByUsername(String username) {
+        return userRepo.findByUsername(username)
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("User not found"))
+                .getId();
     }
 }

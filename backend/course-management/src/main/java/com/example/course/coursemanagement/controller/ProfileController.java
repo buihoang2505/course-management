@@ -5,7 +5,10 @@ import com.example.course.coursemanagement.entity.User;
 import com.example.course.coursemanagement.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -17,12 +20,11 @@ public class ProfileController {
 
     private final UserRepository userRepository;
 
-    // GET /api/users/{id}/profile
+    // GET /api/users/{id}/profile — public đọc được (hiển thị tên, avatar)
     @GetMapping("/{id}/profile")
     public ResponseEntity<?> getProfile(@PathVariable Long id) {
         User user = userRepository.findByIdWithProfile(id)
                 .orElseThrow(() -> new EntityNotFoundException("User not found"));
-
         Profile p = user.getProfile();
         return ResponseEntity.ok(Map.of(
                 "fullName", p != null && p.getFullName() != null ? p.getFullName() : "",
@@ -32,10 +34,22 @@ public class ProfileController {
         ));
     }
 
-    // PUT /api/users/{id}/profile
+    // PUT /api/users/{id}/profile — chỉ chính chủ hoặc ADMIN mới sửa được
     @PutMapping("/{id}/profile")
     public ResponseEntity<?> updateProfile(@PathVariable Long id,
-                                           @RequestBody Map<String, String> body) {
+                                           @RequestBody Map<String, String> body,
+                                           @AuthenticationPrincipal UserDetails principal) {
+        // Ownership check
+        User requester = userRepository.findByUsername(principal.getUsername())
+                .orElseThrow(() -> new EntityNotFoundException("User not found"));
+        boolean isAdmin = principal.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        if (!requester.getId().equals(id) && !isAdmin) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "Khong co quyen sua profile cua nguoi khac!"));
+        }
+
         User user = userRepository.findByIdWithProfile(id)
                 .orElseThrow(() -> new EntityNotFoundException("User not found"));
 
@@ -53,7 +67,7 @@ public class ProfileController {
         userRepository.save(user);
 
         return ResponseEntity.ok(Map.of(
-                "message", "Cập nhật thành công!",
+                "message",  "Cap nhat thanh cong!",
                 "fullName", p.getFullName() != null ? p.getFullName() : "",
                 "phone",    p.getPhone()    != null ? p.getPhone()    : "",
                 "bio",      p.getBio()      != null ? p.getBio()      : ""

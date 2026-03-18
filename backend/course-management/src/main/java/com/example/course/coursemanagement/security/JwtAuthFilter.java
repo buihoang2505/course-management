@@ -55,8 +55,18 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                 }
             }
+        } catch (org.springframework.security.authentication.DisabledException e) {
+            // User bị BAN → trả 403
+            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+            response.setContentType("application/json;charset=UTF-8");
+            response.getWriter().write("{\"error\":\"Account is banned\",\"status\":403}");
+            return;
         } catch (Exception e) {
-            // Token không hợp lệ → bỏ qua, request sẽ bị chặn bởi Security
+            // Token hết hạn hoặc không hợp lệ → trả 401
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType("application/json;charset=UTF-8");
+            response.getWriter().write("{\"error\":\"Token invalid or expired\",\"status\":401}");
+            return;
         }
 
         filterChain.doFilter(request, response);

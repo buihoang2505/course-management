@@ -25,7 +25,13 @@ public class EnrollmentService {
     private final EnrollmentRepository enrollmentRepository;
     private final CourseRepository     courseRepository;
     private final UserRepository       userRepository;
-    private final EmailService         emailService;   // ← inject
+    private final EmailService              emailService;
+    private final com.example.course.coursemanagement.repository.PaymentRepository paymentRepository;
+    private final com.example.course.coursemanagement.repository.LessonCompletionRepository completionRepository;
+    private final com.example.course.coursemanagement.repository.GradeRepository            gradeRepository;
+    private final com.example.course.coursemanagement.repository.QuizAttemptRepository      attemptRepository;
+    private final com.example.course.coursemanagement.repository.AttemptAnswerRepository   answerRepository;
+    private final com.example.course.coursemanagement.repository.CertificateRepository      certificateRepository;
 
     public Enrollment enrollCourse(Long userId, Long courseId) {
         User user = userRepository.findById(userId)
@@ -51,7 +57,19 @@ public class EnrollmentService {
                 .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy khóa học!"));
 
         if (course.getStatus() != Course.CourseStatus.ACTIVE) {
-            throw new IllegalArgumentException("Khóa học này không mở đăng ký!");
+            throw new IllegalArgumentException("Khoa hoc nay khong mo dang ky!");
+        }
+
+        // Kiểm tra nếu khóa học có phí → phải có payment SUCCESS
+        // Dùng price làm nguồn sự thật, không dùng isFree (có thể bị sai default)
+        boolean isFreeByPrice = (course.getPrice() == null || course.getPrice() == 0);
+        if (!isFreeByPrice) {
+            boolean hasPaid = paymentRepository.existsByUserIdAndCourseIdAndStatus(
+                    userId, courseId,
+                    com.example.course.coursemanagement.entity.Payment.PaymentStatus.SUCCESS);
+            if (!hasPaid) {
+                throw new IllegalStateException("PAYMENT_REQUIRED:" + course.getPrice());
+            }
         }
 
         Enrollment enrollment = new Enrollment();
@@ -77,11 +95,33 @@ public class EnrollmentService {
     }
 
     public void unenrollCourse(Long userId, Long courseId) {
-        List<Enrollment> list = enrollmentRepository.findByUserIdWithCourse(userId);
-        Enrollment e = list.stream()
-                .filter(en -> en.getCourse() != null && en.getCourse().getId().equals(courseId))
-                .findFirst()
-                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy đăng ký!"));
+        Enrollment e = enrollmentRepository.findByUserIdAndCourseId(userId, courseId)
+                .orElseThrow(() -> new EntityNotFoundException("Kh\u00f4ng t\u00ecm th\u1ea5y \u0111\u0103ng k\u00fd!"));
+
+        // FIX: JPQL bulk-DELETE kh\u00f4ng trigger JPA CascadeType.ALL
+        // Ph\u1ea3i x\u00f3a attempt_answers th\u1ee7 c\u00f4ng tr\u01b0\u1edbc r\u1ed3i m\u1edbi x\u00f3a quiz_attempts.
+
+        // B\u01b0\u1edbc 1: l\u1ea5y IDs attempts thu\u1ed9c course n\u00e0y
+        List<Long> attemptIds = attemptRepository
+                .findAttemptIdsByUserAndCourse(userId, courseId);
+
+        // B\u01b0\u1edbc 2: x\u00f3a attempt_answers (FK → quiz_attempts)
+        if (!attemptIds.isEmpty()) {
+            answerRepository.deleteByAttemptIds(attemptIds);
+        }
+
+        // B\u01b0\u1edbc 3: x\u00f3a quiz_attempts theo ID (kh\u00f4ng dùng JPQL bulk)
+        if (!attemptIds.isEmpty()) {
+            attemptRepository.deleteAllById(attemptIds);
+        }
+
+        // B\u01b0\u1edbc 4: lesson completions ch\u1ec9 c\u1ee7a course n\u00e0y
+        completionRepository.deleteByUserIdAndCourseId(userId, courseId);
+
+        // B\u01b0\u1edbc 5: ch\u1ee9ng ch\u1ec9 ch\u1ec9 c\u1ee7a course n\u00e0y
+        certificateRepository.deleteByUserIdAndCourseId(userId, courseId);
+
+        // B\u01b0\u1edbc 6: x\u00f3a enrollment (Grade cascade theo)
         enrollmentRepository.delete(e);
     }
 

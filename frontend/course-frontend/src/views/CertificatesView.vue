@@ -69,7 +69,7 @@
                     <div class="cs-lbl">Bài học<br>hoàn thành</div>
                   </div>
                   <div class="crc-stat highlight">
-                    <div class="cs-num">{{ cert.averageQuizScore }}%</div>
+                    <div class="cs-num">{{ cert.averageQuizScore > 0 ? cert.averageQuizScore + "%" : "N/A" }}</div>
                     <div class="cs-lbl">Điểm TB<br>quiz</div>
                   </div>
                   <div class="crc-stat">

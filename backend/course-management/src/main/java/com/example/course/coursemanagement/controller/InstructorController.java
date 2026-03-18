@@ -101,6 +101,11 @@ public class InstructorController {
         course.setCredits(credits != null ? Integer.valueOf(credits.toString()) : 3);
         String status = (String) body.getOrDefault("status", "DRAFT");
         course.setStatus(Course.CourseStatus.valueOf(status));
+        // Payment fields
+        Object price  = body.get("price");
+        Object isFree = body.get("isFree");
+        course.setPrice(price  != null ? Long.valueOf(price.toString()) : 0L);
+        course.setIsFree(isFree != null ? Boolean.parseBoolean(isFree.toString()) : true);
         course.setCreatedAt(LocalDateTime.now());
         course.setUpdatedAt(LocalDateTime.now());
 

@@ -17,6 +17,11 @@ public interface AttemptAnswerRepository extends JpaRepository<AttemptAnswer, Lo
      * Dùng khi admin update câu hỏi (xóa choices cũ, tạo choices mới).
      * SET NULL thay vì DELETE để giữ lịch sử làm bài.
      */
+    /** Xóa answers thuộc danh sách attemptIds — gọi trước khi xóa quiz_attempts */
+    @Modifying
+    @Query("DELETE FROM AttemptAnswer aa WHERE aa.attempt.id IN :attemptIds")
+    void deleteByAttemptIds(@Param("attemptIds") List<Long> attemptIds);
+
     @Modifying
     @Query("UPDATE AttemptAnswer aa SET aa.choice = null WHERE aa.question.id = :questionId")
     void nullifyChoiceByQuestionId(@Param("questionId") Long questionId);

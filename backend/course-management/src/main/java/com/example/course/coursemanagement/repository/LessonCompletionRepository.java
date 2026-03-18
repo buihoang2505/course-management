@@ -2,6 +2,7 @@ package com.example.course.coursemanagement.repository;
 
 import com.example.course.coursemanagement.entity.LessonCompletion;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -51,4 +52,10 @@ public interface LessonCompletionRepository extends JpaRepository<LessonCompleti
 
     // Dùng khi xóa user
     void deleteByUserId(Long userId);
+
+    /** Xóa completions của user trong 1 course khi unenroll */
+    @Modifying
+    @Query("DELETE FROM LessonCompletion lc WHERE lc.user.id = :userId AND lc.lesson.course.id = :courseId")
+    void deleteByUserIdAndCourseId(@Param("userId") Long userId,
+                                   @Param("courseId") Long courseId);
 }

@@ -27,13 +27,25 @@ api.interceptors.request.use(config => {
 api.interceptors.response.use(
     response => response,
     error => {
-        // Chỉ logout khi 401 (token hết hạn/không hợp lệ)
-        // Không logout khi 403 (có thể là thiếu quyền với 1 endpoint cụ thể)
-        if (error.response?.status === 401) {
+        const status  = error.response?.status
+        const errBody = error.response?.data
+
+        // 401: token hết hạn / không hợp lệ → logout
+        if (status === 401) {
             localStorage.removeItem('token')
             localStorage.removeItem('user')
             window.location.href = '/login'
+            return Promise.reject(error)
         }
+
+        // 403: tài khoản bị ban → thông báo + logout
+        if (status === 403 && errBody?.error === 'Account is banned') {
+            localStorage.removeItem('token')
+            localStorage.removeItem('user')
+            window.location.href = '/login?banned=1'
+            return Promise.reject(error)
+        }
+
         return Promise.reject(error)
     }
 )

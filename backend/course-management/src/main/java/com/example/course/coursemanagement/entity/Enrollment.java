@@ -10,8 +10,11 @@ import java.time.LocalDateTime;
 @Entity
 @Table(
         name = "enrollments",
-        // Đảm bảo 1 user chỉ đăng ký 1 khóa học 1 lần
-        uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "course_id"})
+        uniqueConstraints = @UniqueConstraint(name = "uk_enroll_user_course", columnNames = {"user_id", "course_id"}),
+        indexes = {
+                @Index(name = "idx_enroll_user",   columnList = "user_id"),
+                @Index(name = "idx_enroll_course", columnList = "course_id")
+        }
 )
 @Data
 @NoArgsConstructor

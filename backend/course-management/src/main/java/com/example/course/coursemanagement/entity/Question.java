@@ -1,5 +1,6 @@
 package com.example.course.coursemanagement.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -40,11 +41,14 @@ public class Question {
 
     // ── RELATIONSHIPS ──────────────────────────────────
 
+    @JsonIgnore
+    @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "quiz_id", nullable = false)
     private Quiz quiz;
 
     // Mỗi câu hỏi có nhiều lựa chọn (thường 4)
+    @ToString.Exclude
     @OneToMany(mappedBy = "question", cascade = CascadeType.ALL,
             orphanRemoval = true, fetch = FetchType.LAZY)
     @OrderBy("id ASC")

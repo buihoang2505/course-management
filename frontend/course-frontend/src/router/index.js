@@ -14,11 +14,20 @@ const routes = [
     { path: '/profile',     component: () => import('../views/ProfileView.vue'),     meta: { requiresAuth: true } },
 
     { path: '/admin',       component: () => import('../views/AdminView.vue'),       meta: { requiresAuth: true, adminOnly: true } },
-    { path: '/instructor',  component: () => import('../views/InstructorView.vue'),  meta: { requiresAuth: true, instructorOnly: true } },
+    { path: '/instructor',       component: () => import('../views/InstructorView.vue'),       meta: { requiresAuth: true, instructorOnly: true } },
+    { path: '/apply-instructor', component: () => import('../views/ApplyInstructorView.vue'), meta: { requiresAuth: true, studentOnly: true } },
 
     { path: '/certificates',    component: () => import('../views/CertificatesView.vue'),    meta: { requiresAuth: true } },
     { path: '/leaderboard',     component: () => import('../views/LeaderboardView.vue'),     meta: { requiresAuth: true } },
     { path: '/verify/:code',    component: () => import('../views/CertificateVerifyView.vue'), meta: { public: true } },
+
+    // 404 — phải là route CUỐI CÙNG
+    { path: '/checkout/success', component: () => import('../views/CheckoutSuccessView.vue'), meta: { requiresAuth: true } },
+    { path: '/payment/result',  component: () => import('../views/PaymentResultView.vue'),  meta: { public: true } },
+    { path: '/payment/confirm', component: () => import('../views/PaymentConfirmView.vue'), meta: { requiresAuth: true } },
+    { path: '/cart',            component: () => import('../views/CartView.vue'),            meta: { requiresAuth: true } },
+    { path: '/wishlist',        component: () => import('../views/WishlistView.vue'),        meta: { requiresAuth: true } },
+    { path: '/:pathMatch(.*)*',  component: () => import('../views/NotFoundView.vue'),          meta: { public: true } },
 ]
 
 const router = createRouter({
@@ -40,6 +49,11 @@ router.beforeEach((to, from, next) => {
     }
     else if (to.meta.instructorOnly && auth.user?.role !== 'INSTRUCTOR' && !auth.isAdmin) {
         next('/courses')
+    }
+    else if (to.meta.studentOnly) {
+        if (auth.user?.role === 'INSTRUCTOR') return next('/instructor')
+        if (auth.isAdmin) return next('/admin')
+        next()
     }
     else {
         next()

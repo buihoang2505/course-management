@@ -1,6 +1,7 @@
 package com.example.course.coursemanagement.entity;
 
 import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
@@ -9,7 +10,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "quiz_attempts")
+@Table(name = "quiz_attempts", indexes = {
+        @Index(name = "idx_qa_quiz", columnList = "quiz_id"),
+        @Index(name = "idx_qa_user", columnList = "user_id")
+})
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -53,15 +57,20 @@ public class QuizAttempt {
 
     // ── RELATIONSHIPS ──────────────────────────────────
 
+    @JsonIgnore
+    @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "quiz_id", nullable = false)
     private Quiz quiz;
 
+    @JsonIgnore
+    @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
     // Câu trả lời của lần làm này
+    @ToString.Exclude
     @OneToMany(mappedBy = "attempt", cascade = CascadeType.ALL,
             orphanRemoval = true, fetch = FetchType.LAZY)
     @Builder.Default

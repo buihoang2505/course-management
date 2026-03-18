@@ -48,7 +48,6 @@
 
           <template v-else-if="activeTab==='quiz'">
             <span class="phd-title">🧩 Quiz của tôi</span>
-            <button v-if="!showQuizEditor" @click="openQuizCreate" class="btn btn-accent btn-sm">+ Tạo Quiz</button>
           </template>
 
           <template v-else-if="activeTab==='students'">
@@ -57,6 +56,16 @@
               <option value="">-- Chọn khóa học --</option>
               <option v-for="c in courses" :key="c.id" :value="c.id">{{ c.title }}</option>
             </select>
+          </template>
+
+          <template v-else-if="activeTab==='qa'">
+            <span class="phd-title">💬 Hỏi đáp học viên</span>
+            <div class="hd-right">
+              <button :class="['ab','ab-filter',!qaFilter&&'ab-filter-active']"
+                      @click="qaFilter=false;loadQA()">⏳ Chưa trả lời</button>
+              <button :class="['ab','ab-filter',qaFilter&&'ab-filter-active']"
+                      @click="qaFilter=true;loadQA()">✅ Đã giải quyết</button>
+            </div>
           </template>
         </div>
 
@@ -259,6 +268,75 @@
             </template>
           </div>
 
+
+          <!-- ════ Q&A INBOX ════ -->
+          <div v-show="activeTab==='qa'" class="tab-inner">
+            <div v-if="loadingQA" class="center-state"><div class="spinner"></div></div>
+            <div v-else-if="!qaList.length" class="center-state">
+              <div class="empty-ico">💬</div>
+              <p>{{ qaFilter ? 'Không có câu hỏi đã giải quyết' : 'Tất cả câu hỏi đã được xử lý 🎉' }}</p>
+            </div>
+            <div v-else class="qa-inbox">
+              <div v-for="q in qaList" :key="q.id" class="qi-card" :class="{resolved:q.resolved}">
+                <div class="qi-head">
+                  <div class="uav" style="width:28px;height:28px;font-size:.7rem;flex-shrink:0">
+                    {{ (q.author||'?')[0].toUpperCase() }}
+                  </div>
+                  <div class="qi-meta">
+                    <span class="uname">{{ q.author }}</span>
+                    <span class="qi-ctx">📖 {{ q.lessonTitle }} &nbsp;·&nbsp; 📚 {{ q.courseTitle }}</span>
+                    <span class="uid">{{ new Date(q.createdAt).toLocaleString('vi-VN') }}</span>
+                  </div>
+                  <div class="acts" style="margin-left:auto;flex-shrink:0">
+                    <span v-if="q.resolved" class="badge badge-green" style="font-size:.65rem">✅ Xử lý</span>
+                    <button @click="toggleQAResolve(q)" class="ab" style="font-size:.71rem"
+                            :title="q.resolved?'Bỏ giải quyết':'Đánh dấu đã xử lý'">
+                      {{ q.resolved ? '↩' : '✓' }}
+                    </button>
+                    <button @click="delQA(q.id)" class="ab ab-red" style="font-size:.71rem">🗑</button>
+                  </div>
+                </div>
+                <p class="qi-body">{{ q.content }}</p>
+
+                <div v-if="q.replies?.length" class="qi-replies">
+                  <div v-for="r in q.replies" :key="r.id" class="qi-reply" :class="{official:r.official}">
+                    <div class="uav" style="width:22px;height:22px;font-size:.62rem;flex-shrink:0;background:linear-gradient(135deg,#059669,#10b981)">
+                      {{ (r.author||'?')[0].toUpperCase() }}
+                    </div>
+                    <div class="qi-rb">
+                      <div style="display:flex;align-items:center;gap:.35rem;margin-bottom:.15rem;flex-wrap:wrap">
+                        <span class="uname" style="font-size:.78rem">{{ r.author }}</span>
+                        <span v-if="r.official" class="badge badge-blue" style="font-size:.62rem">
+                          {{ r.role==='ADMIN'?'🛡 Admin':'👨‍🏫 GV' }}
+                        </span>
+                      </div>
+                      <p class="qi-rtext">{{ r.content }}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div style="margin-top:.5rem">
+                  <textarea v-if="qaReplyOpen[q.id]" v-model="qaReplyText[q.id]"
+                            class="qi-textarea" rows="2"
+                            placeholder="Viết câu trả lời của bạn..."
+                            :ref="el => el && el.focus()"></textarea>
+                  <div style="display:flex;gap:.4rem;margin-top:.35rem">
+                    <button v-if="!qaReplyOpen[q.id]"
+                            @click="qaReplyOpen[q.id]=true;qaReplyText[q.id]=''"
+                            class="btn btn-accent btn-sm">✏️ Trả lời</button>
+                    <template v-else>
+                      <button class="btn btn-ghost btn-sm" @click="qaReplyOpen[q.id]=false">Hủy</button>
+                      <button class="btn btn-accent btn-sm" @click="submitQAReply(q)"
+                              :disabled="!qaReplyText[q.id]?.trim()||qaReplying[q.id]">
+                        {{ qaReplying[q.id]?'…':'Gửi trả lời' }}
+                      </button>
+                    </template>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
         </div><!-- /panel-body -->
       </div><!-- /panel -->
     </div><!-- /admin-shell -->
@@ -280,6 +358,20 @@
             <option value="ACTIVE">✅ Active</option>
             <option value="INACTIVE">⏸ Inactive</option>
           </select>
+        </div>
+        <!-- Giá khóa học -->
+        <div class="form-group">
+          <label style="display:flex;align-items:center;gap:.6rem;cursor:pointer;font-weight:600">
+            <input type="checkbox" v-model="courseForm.isFree"
+                   style="width:15px;height:15px;cursor:pointer;accent-color:var(--accent)"/>
+            Khóa học miễn phí
+          </label>
+        </div>
+        <div v-if="!courseForm.isFree" class="form-group">
+          <label>Học phí (VNĐ) *</label>
+          <input v-model.number="courseForm.price" type="number" min="1000" step="1000"
+                 placeholder="VD: 299000"/>
+          <div class="field-hint">Nhập số nguyên, đơn vị VNĐ. VD: 299000 = 299.000 đ</div>
         </div>
         <div v-if="modalError" class="msg-error">⚠️ {{ modalError }}</div>
         <div class="modal-actions">
@@ -335,6 +427,7 @@ const tabs = [
   { key: 'lessons',   icon: '📖', label: 'Bài học'   },
   { key: 'quiz',      icon: '❓', label: 'Quiz'      },
   { key: 'students',  icon: '👥', label: 'Học viên'  },
+  { key: 'qa',        icon: '💬', label: 'Hỏi đáp'   },
 ]
 
 // ── State ──
@@ -347,6 +440,13 @@ const lessonCourseId  = ref('')
 const studentCourseId = ref('')
 
 const showQuizEditor  = ref(false)
+// ── Q&A ──
+const qaList      = ref([])
+const loadingQA   = ref(false)
+const qaFilter    = ref(false)
+const qaReplyOpen = {}
+const qaReplyText = {}
+const qaReplying  = {}
 const editingQuiz     = ref(null)
 const quizList        = ref([])
 const loadingQuizzes  = ref(false)
@@ -370,7 +470,7 @@ const saving          = ref(false)
 const modalError      = ref('')
 const toast           = reactive({ show: false, text: '', type: 'success' })
 
-const courseForm = reactive({ title: '', description: '', instructor: '', credits: 3, status: 'DRAFT' })
+const courseForm = reactive({ title: '', description: '', instructor: '', credits: 3, status: 'DRAFT', price: 0, isFree: true })
 const lessonForm = reactive({ title: '', content: '', videoUrl: '', orderNum: 1 })
 
 // ── Computed ──
@@ -387,8 +487,50 @@ const filteredQuizzes = computed(() => {
 })
 
 // ── Navigation helpers ──
+async function loadQA() {
+  loadingQA.value = true
+  try {
+    const r = await api.get(`/instructor/questions/inbox?resolved=${qaFilter.value}`)
+    qaList.value = Array.isArray(r.data) ? r.data : []
+  } catch { showToast('Lỗi tải câu hỏi!','error') }
+  finally { loadingQA.value = false }
+}
+async function toggleQAResolve(q) {
+  try {
+    const r = await api.patch(`/questions/${q.id}/resolve`)
+    q.resolved = r.data.resolved
+    if (!qaFilter.value && q.resolved)
+      setTimeout(() => { qaList.value = qaList.value.filter(x => x.id !== q.id) }, 700)
+  } catch { showToast('Lỗi!','error') }
+}
+async function delQA(qId) {
+  if (!confirm('Xóa câu hỏi này?')) return
+  try {
+    await api.delete(`/questions/${qId}`)
+    qaList.value = qaList.value.filter(q => q.id !== qId)
+    showToast('Đã xóa')
+  } catch(e) { showToast(e.response?.data?.error||'Lỗi!','error') }
+}
+async function submitQAReply(q) {
+  const content = (qaReplyText[q.id]||'').trim()
+  if (!content) return
+  qaReplying[q.id] = true
+  try {
+    const r = await api.post(`/questions/${q.id}/replies`, { content })
+    if (!q.replies) q.replies = []
+    q.replies.push(r.data)
+    if (r.data.official) q.resolved = true
+    qaReplyOpen[q.id] = false; qaReplyText[q.id] = ''
+    showToast('Đã gửi câu trả lời!')
+    if (!qaFilter.value && q.resolved)
+      setTimeout(() => { qaList.value = qaList.value.filter(x => x.id !== q.id) }, 800)
+  } catch(e) { showToast(e.response?.data?.error||'Lỗi!','error') }
+  finally { qaReplying[q.id] = false }
+}
+
 function switchTab(key) {
   activeTab.value = key
+  if (key === 'qa') loadQA()
   if (key === 'quiz') { showQuizEditor.value = false; loadQuizzes() }
 }
 
@@ -468,9 +610,9 @@ function openCourseModal(course = null) {
   editingCourse.value = course
   modalError.value = ''
   if (course) {
-    Object.assign(courseForm, { title: course.title, description: course.description || '', instructor: course.instructor || '', credits: course.credits || 3, status: course.status || 'DRAFT' })
+    Object.assign(courseForm, { title: course.title, description: course.description || '', instructor: course.instructor || '', credits: course.credits || 3, status: course.status || 'DRAFT' , price: course.price || 0, isFree: course.isFree !== false })
   } else {
-    Object.assign(courseForm, { title: '', description: '', instructor: auth.user?.username || '', credits: 3, status: 'DRAFT' })
+    Object.assign(courseForm, { title: '', description: '', instructor: auth.user?.username || '', credits: 3, status: 'DRAFT' , price: 0, isFree: true })
   }
   showCourseModal.value = true
 }
@@ -804,4 +946,33 @@ onMounted(() => { loadStats(); loadCourses() })
 .toast.success { background:var(--green-light); color:var(--green); border-color:#6ee7b7; }
 .toast.error   { background:var(--red-light);   color:var(--red);   border-color:#fca5a5; }
 @keyframes toastIn { from{transform:translateX(110%);opacity:0} to{transform:translateX(0);opacity:1} }
+
+/* Q&A Inbox */
+.qa-inbox { display:flex; flex-direction:column; gap:.65rem; }
+.qi-card  { background:var(--surface); border:1.5px solid var(--border); border-radius:11px; padding:.85rem 1rem; transition:border-color .15s; }
+.qi-card:hover { border-color:var(--accent); }
+.qi-card.resolved { border-color:#a7f3d0; background:#f0fdf4; opacity:.82; }
+.qi-head  { display:flex; align-items:flex-start; gap:.55rem; margin-bottom:.5rem; flex-wrap:wrap; }
+.qi-meta  { flex:1; min-width:0; display:flex; flex-direction:column; gap:.1rem; }
+.qi-ctx   { font-size:.71rem; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.qi-body  { font-size:.83rem; line-height:1.6; margin:0 0 .6rem; white-space:pre-wrap; color:var(--text); }
+.qi-replies { padding-left:.8rem; border-left:2px solid var(--border); display:flex; flex-direction:column; gap:.4rem; margin-bottom:.6rem; }
+.qi-reply { display:flex; gap:.45rem; align-items:flex-start; }
+.qi-reply.official { background:#f0fdf4; border-radius:6px; padding:.35rem .5rem; }
+.qi-rb   { flex:1; }
+.qi-rtext { font-size:.8rem; line-height:1.5; margin:0; white-space:pre-wrap; color:var(--text); }
+.qi-textarea { width:100%; padding:.45rem .7rem; background:var(--surface); border:1.5px solid var(--border); border-radius:8px; color:var(--text); font-size:.82rem; font-family:inherit; resize:none; outline:none; box-sizing:border-box; display:block; }
+.qi-textarea:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-light); }
+.ab-filter-active { background:var(--accent) !important; color:#fff !important; border-color:var(--accent) !important; }
+
+/* QA inbox — thêm classes còn thiếu */
+.qi-ctx    { font-size:.71rem; color:var(--muted); margin-top:.1rem; }
+.qi-acts   { display:flex; align-items:center; gap:.3rem; flex-shrink:0; margin-left:auto; }
+.qi-time   { font-size:.7rem; color:var(--muted); }
+.qi-rtext  { font-size:.81rem; color:var(--text); line-height:1.55; margin:0; white-space:pre-wrap; }
+.qi-rmeta  { display:flex; align-items:center; gap:.4rem; margin-bottom:.18rem; flex-wrap:wrap; }
+.qi-textarea { width:100%; padding:.45rem .75rem; background:var(--surface); border:1.5px solid var(--border); border-radius:8px; color:var(--text); font-size:.82rem; font-family:'Plus Jakarta Sans',sans-serif; resize:none; outline:none; transition:border-color .15s; box-sizing:border-box; }
+.qi-textarea:focus { border-color:var(--accent); }
+.qi-reply-acts { display:flex; gap:.4rem; margin-top:.35rem; justify-content:flex-end; }
+
 </style>

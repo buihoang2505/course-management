@@ -1,9 +1,13 @@
 package com.example.course.coursemanagement.controller;
 
 import com.example.course.coursemanagement.dto.ProgressDTO;
+import com.example.course.coursemanagement.repository.UserRepository;
 import com.example.course.coursemanagement.service.LessonCompletionService;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -14,9 +18,9 @@ import java.util.Map;
 public class LessonCompletionController {
 
     private final LessonCompletionService service;
+    private final UserRepository          userRepository;
 
     // GET /api/progress?userId=1&courseId=2
-    // Lấy tiến độ học tập của user trong course
     @GetMapping
     public ResponseEntity<ProgressDTO> getProgress(
             @RequestParam Long userId,
@@ -24,13 +28,13 @@ public class LessonCompletionController {
         return ResponseEntity.ok(service.getProgress(userId, courseId));
     }
 
-    // POST /api/progress/complete?userId=1&lessonId=3
-    // Đánh dấu bài học hoàn thành
+    // POST /api/progress/complete?lessonId=3  — userId từ JWT
     @PostMapping("/complete")
     public ResponseEntity<?> markComplete(
-            @RequestParam Long userId,
-            @RequestParam Long lessonId) {
+            @RequestParam Long lessonId,
+            @AuthenticationPrincipal UserDetails principal) {
         try {
+            Long userId = resolveUserId(principal);
             ProgressDTO progress = service.markComplete(userId, lessonId);
             return ResponseEntity.ok(progress);
         } catch (IllegalStateException e) {
@@ -38,17 +42,23 @@ public class LessonCompletionController {
         }
     }
 
-    // DELETE /api/progress/complete?userId=1&lessonId=3
-    // Bỏ đánh dấu bài học hoàn thành
+    // DELETE /api/progress/complete?lessonId=3  — userId từ JWT
     @DeleteMapping("/complete")
     public ResponseEntity<?> unmarkComplete(
-            @RequestParam Long userId,
-            @RequestParam Long lessonId) {
+            @RequestParam Long lessonId,
+            @AuthenticationPrincipal UserDetails principal) {
         try {
+            Long userId = resolveUserId(principal);
             ProgressDTO progress = service.unmarkComplete(userId, lessonId);
             return ResponseEntity.ok(progress);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
+    }
+
+    private Long resolveUserId(UserDetails principal) {
+        return userRepository.findByUsername(principal.getUsername())
+                .orElseThrow(() -> new EntityNotFoundException("User not found"))
+                .getId();
     }
 }

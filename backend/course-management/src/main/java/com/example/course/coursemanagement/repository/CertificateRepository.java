@@ -2,6 +2,9 @@ package com.example.course.coursemanagement.repository;
 
 import com.example.course.coursemanagement.entity.Certificate;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -50,4 +53,12 @@ public interface CertificateRepository extends JpaRepository<Certificate, Long> 
 
     // Dùng khi xóa user
     void deleteByUserId(Long userId);
+
+    /** Xóa chứng chỉ của user trong 1 course khi unenroll */
+    @Modifying
+    @Query("DELETE FROM Certificate cert WHERE cert.user.id = :userId AND cert.course.id = :courseId")
+    void deleteByUserIdAndCourseId(@Param("userId") Long userId,
+                                   @Param("courseId") Long courseId);
+
+    void deleteByCourseId(Long courseId);
 }

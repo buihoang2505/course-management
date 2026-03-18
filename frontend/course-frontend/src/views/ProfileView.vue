@@ -41,7 +41,7 @@
           <div v-if="avatarMsg" :class="['av-msg', avatarMsg.type]">
             {{ avatarMsg.text }}
           </div>
-          <div class="av-name">{{ auth.user?.username }}</div>
+          <div class="av-name">{{ auth.user?.fullName || auth.user?.username }}</div>
           <span :class="['role-badge', auth.isAdmin?'role-admin':auth.isInstructor?'role-instructor':'role-student']">
             {{ auth.isAdmin ? '⚙️ Admin' : auth.isInstructor ? '👨‍🏫 Giảng viên' : '🎓 Học viên' }}
           </span>
@@ -104,17 +104,30 @@
           <!-- Thông tin -->
           <div v-show="tab==='info'" class="tab-pane">
 
-            <!-- Readonly: tên đăng nhập + email -->
+            <!-- Tên đăng nhập: editable; Email: readonly -->
             <div class="readonly-section">
-              <div class="rs-label">Thông tin tài khoản <span class="rs-lock">🔒 Không thể thay đổi</span></div>
+              <div class="rs-label">Thông tin tài khoản</div>
               <div class="f2">
-                <div class="form-group">
+                <div class="form-group" :class="{error:usernameError}">
                   <label>Tên đăng nhập</label>
-                  <div class="readonly-f">{{ auth.user?.username }}</div>
+                  <div class="iw">
+                    <input v-model="usernameForm" type="text" placeholder="username" disabled style="opacity:.55;cursor:not-allowed;background:var(--surface2)"/>
+                  </div>
+                  <span v-if="usernameError" class="err">{{ usernameError }}</span>
+                  <span v-else class="field-hint">Dùng để đăng nhập — chỉ chứa chữ, số, dấu _</span>
                 </div>
                 <div class="form-group">
-                  <label>Email</label>
+                  <label>Email <span class="rs-lock">🔒</span></label>
                   <div class="readonly-f">{{ auth.user?.email }}</div>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:.7rem;margin-top:.5rem">
+                <button v-if="false" @click="saveUsername"
+                        class="btn btn-sm btn-accent" :disabled="savingUsername">
+                  {{ savingUsername ? 'Đang lưu...' : '💾 Lưu tên đăng nhập' }}
+                </button>
+                <div v-if="usernameMsg" :class="['inline-msg', usernameMsg.type]">
+                  {{ usernameMsg.text }}
                 </div>
               </div>
             </div>
@@ -315,6 +328,11 @@ const infoTouched = reactive({ fullName:false })
 const savingInfo  = ref(false)
 const infoMsg     = ref(null)
 const loadingProfile = ref(true)
+// ── Username form ──
+const usernameForm   = ref(auth.user?.username || '')
+const usernameError  = ref('')
+const savingUsername = ref(false)
+const usernameMsg    = ref(null)
 
 async function loadProfile() {
   try {
@@ -349,6 +367,26 @@ async function saveInfo() {
   } catch(e) {
     infoMsg.value = { type:'error', text: e.response?.data?.error||'Cập nhật thất bại!' }
   } finally { savingInfo.value=false }
+}
+
+async function saveUsername() {
+  const val = usernameForm.value.trim()
+  if (!val) { usernameError.value = 'Tên đăng nhập không được để trống!'; return }
+  if (!/^[a-zA-Z0-9_]{3,30}$/.test(val)) {
+    usernameError.value = 'Chỉ được dùng chữ, số và dấu _ (3–30 ký tự)'
+    return
+  }
+  savingUsername.value = true; usernameMsg.value = null
+  try {
+    await api.patch(`/users/${auth.user?.id}/username`, { username: val })
+    // Cập nhật store
+    auth.user.username = val
+    localStorage.setItem('user', JSON.stringify(auth.user))
+    usernameMsg.value = { type: 'success', text: '✅ Đã đổi tên đăng nhập!' }
+    setTimeout(() => usernameMsg.value = null, 3000)
+  } catch(e) {
+    usernameError.value = e.response?.data?.error || 'Tên đăng nhập đã được sử dụng!'
+  } finally { savingUsername.value = false }
 }
 
 // ── Password form ──
@@ -593,4 +631,54 @@ onMounted(() => { loadStats(); loadProfile() })
   transition: background .15s;
 }
 .lb-close:hover { background: rgba(255,255,255,.3); }
+
+.inline-msg { font-size:.78rem; font-weight:600; }
+.inline-msg.success { color:#059669; }
+.inline-msg.error   { color:#dc2626; }
+.field-hint { font-size:.74rem; color:var(--muted); }
+
+/* ═══════════════════════════════════════════════
+   RESPONSIVE ADDITIONS
+   ═══════════════════════════════════════════════ */
+@media(max-width:760px) {
+  .page { padding:1rem .9rem; }
+  .page-header h1 { font-size:1.3rem; }
+
+  /* Avatar card */
+  .avatar-card { padding:1.2rem 1rem; }
+
+  /* Stats row */
+  .stats-row { grid-template-columns:repeat(3,1fr); gap:.5rem; }
+  .stat-n { font-size:1.2rem; }
+
+  /* Tab nav */
+  .tab-nav { gap:.25rem; }
+  .tab-btn { padding:.5rem .85rem; font-size:.8rem; }
+
+  /* Form card */
+  .form-card { padding:1.2rem 1rem; }
+  .section-divider { margin:1rem 0; }
+}
+
+@media(max-width:600px) {
+  .f2 { grid-template-columns:1fr; }
+  .profile-shell { gap:.8rem; }
+
+  /* Password strength */
+  .strength-row { flex-wrap:wrap; }
+
+  /* Readonly section */
+  .readonly-section { padding:.9rem 1rem; }
+  .rs-label { font-size:.78rem; }
+
+  /* Tabs full width */
+  .tab-nav { width:100%; }
+  .tab-btn { flex:1; justify-content:center; text-align:center; }
+
+  /* Stats compact */
+  .stats-row { gap:.35rem; }
+  .stat-card { padding:.65rem .5rem; }
+  .stat-n    { font-size:1.1rem; }
+  .stat-l    { font-size:.65rem; }
+}
 </style>

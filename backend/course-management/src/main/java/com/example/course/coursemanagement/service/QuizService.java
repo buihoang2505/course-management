@@ -26,16 +26,8 @@ public class QuizService {
     private final UserRepository             userRepo;
     private final EnrollmentRepository       enrollmentRepo;
     private final GradeRepository            gradeRepo;
-    private final LessonCompletionRepository lessonCompletionRepo;
     private final CertificateService         certificateService;
 
-    // ════════════════════════════════════════════════════
-    //  CÔNG THỨC TÍNH ĐIỂM TỔNG KẾT
-    //  finalScore = quiz_score(thang 10) * 0.4 + progress_score(thang 10) * 0.6
-    //  Đúng 100% quiz → quiz_score = 10
-    // ════════════════════════════════════════════════════
-    private static final double QUIZ_WEIGHT     = 0.4;
-    private static final double PROGRESS_WEIGHT = 0.6;
 
     // ════════════════════════════════════════════════════
     //  ADMIN — CRUD QUIZ
@@ -199,7 +191,7 @@ public class QuizService {
                 .orElseThrow(() -> new EntityNotFoundException(
                         "Bài học này chưa có quiz hoặc quiz chưa được kích hoạt"));
 
-        if (!canAttempt(quiz.getId(), userId))
+        if (hasExceededAttempts(quiz.getId(), userId))
             throw new IllegalStateException("Bạn đã dùng hết " + quiz.getMaxAttempts() + " lượt làm bài");
 
         // FIX: build DTO trực tiếp, không ghép vào lazy collection entity
@@ -216,6 +208,14 @@ public class QuizService {
         dto.setQuestionCount(questions.size());
         dto.setQuestions(questions.stream().map(QuestionDTO::from).collect(Collectors.toList()));
         return dto;
+    }
+
+    // hasExceededAttempts = đảo ngược canAttempt — dùng nội bộ trong service
+    private boolean hasExceededAttempts(Long quizId, Long userId) {
+        Quiz quiz = quizRepo.findById(quizId)
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy quiz"));
+        if (quiz.getMaxAttempts() == null) return false; // không giới hạn → chưa vượt
+        return attemptRepo.countByQuizIdAndUserId(quizId, userId) >= quiz.getMaxAttempts();
     }
 
     @Transactional(readOnly = true)
@@ -252,7 +252,7 @@ public class QuizService {
         User user = userRepo.findById(req.getUserId())
                 .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy user id=" + req.getUserId()));
 
-        if (!canAttempt(quizId, req.getUserId()))
+        if (hasExceededAttempts(quizId, req.getUserId()))
             throw new IllegalStateException("Bạn đã dùng hết lượt làm bài");
 
         // Server-side time validation — chống cheat bằng cách reload lại trang
@@ -325,43 +325,30 @@ public class QuizService {
     }
 
     /**
-     * Tính và lưu điểm tổng kết vào Grade + Enrollment.
-     *
-     * Công thức (thang 10):
-     *   quiz_score    = bestAttemptScore / 100 * 10  (đúng 100% → 10 điểm)
-     *   progress_score = completedLessons / totalLessons * 10
-     *   finalScore    = quiz_score * 40% + progress_score * 60%
-     *
-     * Chỉ cập nhật khi điểm mới cao hơn điểm cũ.
+     * Tính điểm tổng kết = TB điểm cao nhất của tất cả quiz trong khóa (thang 10).
+     * Không dùng tiến độ bài học. Chỉ cập nhật khi điểm mới cao hơn.
      */
     private void updateFinalGrade(User user, Quiz quiz, Long quizId) {
         try {
             Long courseId = quiz.getLesson().getCourse().getId();
-
             Enrollment enrollment = enrollmentRepo
                     .findByUserIdAndCourseId(user.getId(), courseId).orElse(null);
             if (enrollment == null) return;
 
-            // Điểm quiz cao nhất của user cho quiz này (thang 100)
-            double bestScore100 = attemptRepo
-                    .findByQuizIdAndUserId(quizId, user.getId()).stream()
-                    .mapToDouble(a -> a.getScore() != null ? a.getScore() : 0.0)
-                    .max().orElse(0.0);
+            long totalQuizzes = quizRepo.countActiveByCourseId(courseId);
+            if (totalQuizzes == 0) return;
 
-            double quizScore10     = Math.round(bestScore100 / 10.0 * 10) / 10.0;
+            List<Double> bestScores = attemptRepo
+                    .findBestScoresPerQuizByCourse(user.getId(), courseId);
+            if (bestScores.isEmpty()) return;
 
-            // Tiến độ học tập
-            long totalLessons     = lessonRepo.countByCourseId(courseId);
-            long completedLessons = lessonCompletionRepo.countByUserIdAndCourseId(user.getId(), courseId);
-            double progressScore10 = totalLessons > 0
-                    ? Math.round(completedLessons * 10.0 / totalLessons * 10) / 10.0 : 0.0;
-
-            double finalScore = Math.round(
-                    (quizScore10 * QUIZ_WEIGHT + progressScore10 * PROGRESS_WEIGHT) * 10) / 10.0;
+            double avgScore100 = bestScores.stream()
+                    .mapToDouble(Double::doubleValue).average().orElse(0.0);
+            double finalScore  = Math.round(avgScore100 / 10.0 * 10) / 10.0;
 
             String feedback = String.format(
-                    "Tự động tính: Quiz %.1f/10 (40%%) + Tiến độ %.1f/10 (60%%)",
-                    quizScore10, progressScore10);
+                    "Tu dong tinh: TB diem quiz %.1f/10 (%d/%d quiz da lam)",
+                    finalScore, bestScores.size(), totalQuizzes);
 
             Grade grade = gradeRepo.findByEnrollmentId(enrollment.getId()).orElse(null);
             if (grade == null) {
@@ -377,7 +364,6 @@ public class QuizService {
                 gradeRepo.save(grade);
             }
 
-            // Cập nhật finalScore và result trên Enrollment
             enrollment.setFinalScore(finalScore);
             enrollment.setResult(finalScore >= 5.0
                     ? Enrollment.ResultStatus.PASSED
@@ -385,7 +371,6 @@ public class QuizService {
             enrollmentRepo.save(enrollment);
 
         } catch (Exception e) {
-            // Không để lỗi điểm phá luồng nộp bài
             System.err.println("[QuizService] updateFinalGrade error: " + e.getMessage());
         }
     }
@@ -400,11 +385,14 @@ public class QuizService {
                 .stream().map(QuizAttemptDTO::from).collect(Collectors.toList());
     }
 
-    @Transactional(readOnly = true)
-    public QuizResultDTO getAttemptResult(Long attemptId) {
-        return attemptRepo.findByIdWithAnswers(attemptId)
-                .map(QuizResultDTO::from)
-                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy kết quả làm bài"));
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public QuizResultDTO getAttemptResult(Long attemptId, Long requestUserId, boolean isAdmin) {
+        QuizAttempt attempt = attemptRepo.findByIdWithAnswers(attemptId)
+                .orElseThrow(() -> new EntityNotFoundException("Khong tim thay ket qua lam bai"));
+        if (!isAdmin && !attempt.getUser().getId().equals(requestUserId)) {
+            throw new IllegalStateException("Ban khong co quyen xem ket qua nay!");
+        }
+        return QuizResultDTO.from(attempt);
     }
 
     // ════════════════════════════════════════════════════

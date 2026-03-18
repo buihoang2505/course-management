@@ -1,113 +1,152 @@
 <template>
-  <div class="page">
+  <div>
+    <div class="page">
 
-    <!-- SKELETON -->
-    <template v-if="loading">
-      <div class="sk sk-back"></div>
-      <div class="hero-card">
-        <div class="sk-hero-left">
-          <div class="sk sk-icon"></div>
-          <div class="sk-hero-info">
-            <div class="sk sk-badge"></div>
-            <div class="sk sk-title"></div>
-            <div class="sk sk-desc"></div>
-            <div class="sk sk-desc short"></div>
-          </div>
-        </div>
-        <div class="sk sk-btn"></div>
-      </div>
-      <div class="lessons-shell">
-        <div class="lessons-hd"><div class="sk sk-h2"></div></div>
-        <div class="sk-lessons">
-          <div v-for="i in 5" :key="i" class="sk-lesson-row">
-            <div class="sk sk-num"></div>
-            <div class="sk sk-lname"></div>
-          </div>
-        </div>
-      </div>
-    </template>
-
-    <template v-else-if="course">
-      <!-- ── NÚT QUAY LẠI ── -->
-      <button @click="$router.back()" class="btn-back">
-        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
-        <span>Quay lại</span>
-      </button>
-
-      <!-- Hero -->
-      <div class="hero-card">
-        <div class="hero-left">
-          <div class="hero-icon">{{ courseIcon }}</div>
-          <div class="hero-info">
-            <div class="hero-badges">
-              <span class="badge badge-blue">{{ course.credits }} tín chỉ</span>
-              <span :class="['badge', course.status==='ACTIVE'?'badge-green':'badge-gray']">{{ course.status }}</span>
-              <span v-if="courseAvgRating" class="badge badge-star">⭐ {{ courseAvgRating }}</span>
-            </div>
-            <h1>{{ course.title }}</h1>
-            <p class="hero-desc">{{ course.description }}</p>
-            <div class="hero-inst"><span class="inst-dot"></span>{{ course.instructor||'Chưa xác định' }}</div>
-          </div>
-        </div>
-        <div class="hero-action">
-          <div v-if="isEnrolled" class="enrolled-box">
-            <div class="enrolled-check">
-              <svg width="13" height="13" fill="none" stroke="#fff" stroke-width="3" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-            </div>
-            <div>
-              <div class="enrolled-t">Đã đăng ký</div>
-              <div class="enrolled-s">Bạn có thể xem tất cả bài học</div>
+      <!-- SKELETON -->
+      <template v-if="loading">
+        <div class="sk sk-back"></div>
+        <div class="hero-card">
+          <div class="sk-hero-left">
+            <div class="sk sk-icon"></div>
+            <div class="sk-hero-info">
+              <div class="sk sk-badge"></div>
+              <div class="sk sk-title"></div>
+              <div class="sk sk-desc"></div>
+              <div class="sk sk-desc short"></div>
             </div>
           </div>
-          <template v-else-if="!auth.isAdmin">
-            <button v-if="course.status === 'ACTIVE'" @click="enroll" class="btn btn-enroll" :disabled="enrolling">
-              {{ enrolling ? '...' : '🚀 Đăng ký ngay' }}
-            </button>
-            <div v-else-if="course.status === 'INACTIVE'" class="enroll-closed">🔒 Khóa học đã đóng tuyển sinh</div>
-            <div v-else-if="course.status === 'DRAFT'"    class="enroll-closed enroll-draft">📝 Khóa học chưa công khai</div>
-          </template>
+          <div class="sk sk-btn"></div>
         </div>
-      </div>
-
-      <!-- Progress bar -->
-      <div v-if="isEnrolled" class="progress-card">
-        <div class="prog-top">
-          <div class="prog-info">
-            <span class="prog-label">Tiến độ học tập</span>
-            <span v-if="progress.courseCompleted" class="completed-badge">🎉 Hoàn thành!</span>
+        <div class="lessons-shell">
+          <div class="lessons-hd"><div class="sk sk-h2"></div></div>
+          <div class="sk-lessons">
+            <div v-for="i in 5" :key="i" class="sk-lesson-row">
+              <div class="sk sk-num"></div>
+              <div class="sk sk-lname"></div>
+            </div>
           </div>
-          <span class="prog-pct" :class="{done:progress.courseCompleted}">{{ progress.percentage }}%</span>
         </div>
-        <div class="prog-track">
-          <div class="prog-fill" :style="`width:${progress.percentage}%`" :class="{done:progress.courseCompleted}"></div>
-        </div>
-        <div class="prog-meta">{{ progress.completedLessons }}/{{ progress.totalLessons }} bài học</div>
-      </div>
+      </template>
 
-      <!-- Lessons accordion -->
-      <div class="lessons-shell">
-        <div class="lessons-hd">
-          <h2>📖 Nội dung khóa học</h2>
-          <span class="lcount">{{ lessons.length }} bài học</span>
-        </div>
+      <template v-else-if="course">
+        <!-- ── NÚT QUAY LẠI ── -->
+        <button @click="$router.back()" class="btn-back">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+          <span>Quay lại</span>
+        </button>
 
-        <div v-if="!lessons.length" class="center-state">
-          <div class="empty-ico">📝</div><p>Chưa có bài học nào.</p>
-        </div>
-
-        <div v-else class="accordion">
-          <div v-for="l in lessons" :key="l.id" class="acc-item">
-
-            <div :class="['acc-hd', { 'is-open': expandedId===l.id, 'is-locked': !isEnrolled, 'is-done': isDone(l.id) }]"
-                 @click="isEnrolled && toggle(l.id)">
-              <div :class="['acc-num', { 'num-done': isDone(l.id), 'num-open': expandedId===l.id && !isDone(l.id) }]">
-                <svg v-if="isDone(l.id)" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-                <span v-else>{{ l.orderNum }}</span>
+        <!-- Hero -->
+        <div class="hero-card">
+          <div class="hero-left">
+            <div class="hero-icon">{{ courseIcon }}</div>
+            <div class="hero-info">
+              <div class="hero-badges">
+                <span class="badge badge-blue">{{ course.credits }} tín chỉ</span>
+                <span :class="['badge', course.status==='ACTIVE'?'badge-green':'badge-gray']">{{ course.status }}</span>
+                <span v-if="courseAvgRating" class="badge badge-star">⭐ {{ courseAvgRating }}</span>
               </div>
-              <div class="acc-title">{{ l.title }}</div>
+              <h1>{{ course.title }}</h1>
+              <p class="hero-desc">{{ course.description }}</p>
+              <div class="hero-inst"><span class="inst-dot"></span>{{ course.instructor||'Chưa xác định' }}</div>
+              <div class="hero-stats">
+              <span v-if="courseAvgRating" class="hstat">
+                ⭐ <strong>{{ courseAvgRating }}</strong>
+              </span>
+                <span class="hstat">👥 {{ course.enrollCount || 0 }} học viên</span>
+                <span class="hstat">📖 {{ course.credits }} tín chỉ</span>
+              </div>
+            </div>
+          </div>
+          <div class="hero-action">
+            <!-- Đã đăng ký -->
+            <div v-if="isEnrolled" class="enrolled-box">
+              <div class="enrolled-check">
+                <svg width="13" height="13" fill="none" stroke="#fff" stroke-width="3" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div>
+                <div class="enrolled-t">Đã đăng ký</div>
+                <div class="enrolled-s">Bạn có thể xem tất cả bài học</div>
+              </div>
+            </div>
 
-              <!-- Quiz badge trong header -->
-              <span v-if="isEnrolled && quizMap[l.id]" class="quiz-badge-sm">
+            <!-- Chưa đăng ký -->
+            <template v-else-if="!auth.isAdmin && !isOwnCourse.value">
+              <template v-if="course.status === 'ACTIVE'">
+                <!-- Giá -->
+                <div class="action-price">
+                  <template v-if="!course.isFree && course.price > 0">
+                    <span class="ap-label">Học phí</span>
+                    <span class="ap-amount">{{ formatPrice(course.price) }}</span>
+                  </template>
+                  <span v-else class="ap-free">🎁 Miễn phí</span>
+                </div>
+                <!-- Nút chính -->
+                <button v-if="!course.isFree && course.price > 0"
+                        @click="enroll" class="btn-action primary"
+                        :disabled="enrolling || paying">
+                  <template v-if="paying">⏳ Đang tạo thanh toán...</template>
+                  <template v-else-if="enrolling">...</template>
+                  <template v-else>💳 Mua khóa học</template>
+                </button>
+                <button v-else @click="enroll" class="btn-action primary" :disabled="enrolling">
+                  {{ enrolling ? '...' : '🚀 Đăng ký miễn phí' }}
+                </button>
+                <!-- Thêm vào giỏ -->
+                <button v-if="!course.isFree && course.price > 0"
+                        @click="toggleCart"
+                        :class="['btn-action', 'secondary', { 'in-cart': inCart }]">
+                  {{ inCart ? '🛒 Đã trong giỏ hàng' : '🛒 Thêm vào giỏ hàng' }}
+                </button>
+                <!-- Wishlist -->
+                <button @click="toggleWish" :class="['btn-action', 'wish', { active: inWish }]">
+                  {{ inWish ? '❤️ Đã yêu thích' : '🤍 Thêm vào yêu thích' }}
+                </button>
+              </template>
+              <div v-else-if="course.status === 'INACTIVE'" class="enroll-closed">🔒 Khóa học đã đóng</div>
+              <div v-else-if="course.status === 'DRAFT'" class="enroll-closed enroll-draft">📝 Chưa công khai</div>
+            </template>
+          </div>
+        </div>
+
+        <!-- Progress bar -->
+        <div v-if="isEnrolled" class="progress-card">
+          <div class="prog-top">
+            <div class="prog-info">
+              <span class="prog-label">Tiến độ học tập</span>
+              <span v-if="progress.courseCompleted" class="completed-badge">🎉 Hoàn thành!</span>
+            </div>
+            <span class="prog-pct" :class="{done:progress.courseCompleted}">{{ progress.percentage }}%</span>
+          </div>
+          <div class="prog-track">
+            <div class="prog-fill" :style="`width:${progress.percentage}%`" :class="{done:progress.courseCompleted}"></div>
+          </div>
+          <div class="prog-meta">{{ progress.completedLessons }}/{{ progress.totalLessons }} bài học</div>
+        </div>
+
+        <!-- Lessons accordion -->
+        <div class="lessons-shell">
+          <div class="lessons-hd">
+            <h2>📖 Nội dung khóa học</h2>
+            <span class="lcount">{{ lessons.length }} bài học</span>
+          </div>
+
+          <div v-if="!lessons.length" class="center-state">
+            <div class="empty-ico">📝</div><p>Chưa có bài học nào.</p>
+          </div>
+
+          <div v-else class="accordion">
+            <div v-for="l in lessons" :key="l.id" class="acc-item">
+
+              <div :class="['acc-hd', { 'is-open': expandedId===l.id, 'is-locked': !canViewContent, 'is-done': isDone(l.id) }]"
+                   @click="canViewContent && toggle(l.id)">
+                <div :class="['acc-num', { 'num-done': isDone(l.id), 'num-open': expandedId===l.id && !isDone(l.id) }]">
+                  <svg v-if="isDone(l.id)" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                  <span v-else>{{ l.orderNum }}</span>
+                </div>
+                <div class="acc-title">{{ l.title }}</div>
+
+                <!-- Quiz badge trong header -->
+                <span v-if="canViewContent && quizMap[l.id]" class="quiz-badge-sm">
                 🧩 Quiz
                 <span v-if="bestScoreMap[l.id] !== undefined"
                       :class="['qbs', bestScoreMap[l.id] >= quizMap[l.id].passingScore ? 'qbs-pass' : 'qbs-fail']">
@@ -115,146 +154,202 @@
                 </span>
               </span>
 
-              <span v-if="!isEnrolled" class="lock-ico">🔒</span>
-              <template v-else>
-                <span v-if="isDone(l.id)" class="done-chip">✓ Đã học</span>
-                <svg :class="['chevron', { 'ch-open': expandedId===l.id }]" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                  <polyline points="6 9 12 15 18 9"/>
-                </svg>
-              </template>
-            </div>
+                <span v-if="!canViewContent" class="lock-ico">🔒</span>
+                <template v-else>
+                  <span v-if="isDone(l.id)" class="done-chip">✓ Đã học</span>
+                  <svg :class="['chevron', { 'ch-open': expandedId===l.id }]" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                    <polyline points="6 9 12 15 18 9"/>
+                  </svg>
+                </template>
+              </div>
 
-            <!-- ACC BODY -->
-            <div class="acc-body" :style="expandedId===l.id ? 'max-height:900px' : 'max-height:0'">
-              <div class="acc-inner">
-                <p>{{ l.content||'Không có nội dung.' }}</p>
-                <!-- Video player — tự detect YouTube vs Cloudinary -->
-                <div v-if="l.videoUrl" class="lesson-video">
-                  <VideoPlayer :url="l.videoUrl" />
-                </div>
-
-                <!-- ── QUIZ BLOCK ──────────────────────── -->
-                <div v-if="isEnrolled && quizMap[l.id]" class="quiz-block">
-                  <div class="qb-header">
-                    <div class="qb-info">
-                      <span class="qb-icon">🧩</span>
-                      <div>
-                        <div class="qb-title">{{ quizMap[l.id].title }}</div>
-                        <div class="qb-meta">
-                          <span>{{ quizMap[l.id].questionCount }} câu</span>
-                          <span class="qb-dot">·</span>
-                          <span>Đạt: {{ quizMap[l.id].passingScore }}%</span>
-                          <span v-if="quizMap[l.id].timeLimitMinutes" class="qb-dot">·</span>
-                          <span v-if="quizMap[l.id].timeLimitMinutes">⏱ {{ quizMap[l.id].timeLimitMinutes }} phút</span>
-                          <span v-if="quizMap[l.id].maxAttempts" class="qb-dot">·</span>
-                          <span v-if="quizMap[l.id].maxAttempts">Tối đa {{ quizMap[l.id].maxAttempts }} lần</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <!-- Điểm tốt nhất -->
-                    <div v-if="bestScoreMap[l.id] !== undefined" class="qb-best">
-                      <div :class="['qb-score', bestScoreMap[l.id] >= quizMap[l.id].passingScore ? 'score-pass' : 'score-fail']">
-                        {{ bestScoreMap[l.id] }}<span class="score-unit">/100</span>
-                      </div>
-                      <div class="qb-best-label">Điểm cao nhất</div>
-                    </div>
+              <!-- ACC BODY -->
+              <div class="acc-body" :style="expandedId===l.id ? 'max-height:900px' : 'max-height:0'">
+                <div class="acc-inner">
+                  <p>{{ l.content||'Không có nội dung.' }}</p>
+                  <!-- Video player — tự detect YouTube vs Cloudinary -->
+                  <div v-if="l.videoUrl" class="lesson-video">
+                    <VideoPlayer :url="l.videoUrl" />
                   </div>
 
-                  <!-- Lịch sử làm bài (nếu có) -->
-                  <div v-if="attemptHistoryMap[l.id]?.length" class="qb-history">
-                    <div class="qbh-title">Lịch sử:</div>
-                    <div class="qbh-list">
+                  <!-- ── Q&A ──────────────────────────────── -->
+                  <LessonQA v-if="canViewContent" :lesson-id="l.id" :key="'qa-'+l.id" />
+
+                  <!-- ── QUIZ BLOCK ──────────────────────── -->
+                  <div v-if="canViewContent && quizMap[l.id]" class="quiz-block">
+                    <div class="qb-header">
+                      <div class="qb-info">
+                        <span class="qb-icon">🧩</span>
+                        <div>
+                          <div class="qb-title">{{ quizMap[l.id].title }}</div>
+                          <div class="qb-meta">
+                            <span>{{ quizMap[l.id].questionCount }} câu</span>
+                            <span class="qb-dot">·</span>
+                            <span>Đạt: {{ quizMap[l.id].passingScore }}%</span>
+                            <span v-if="quizMap[l.id].timeLimitMinutes" class="qb-dot">·</span>
+                            <span v-if="quizMap[l.id].timeLimitMinutes">⏱ {{ quizMap[l.id].timeLimitMinutes }} phút</span>
+                            <span v-if="quizMap[l.id].maxAttempts" class="qb-dot">·</span>
+                            <span v-if="quizMap[l.id].maxAttempts">Tối đa {{ quizMap[l.id].maxAttempts }} lần</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Điểm tốt nhất -->
+                      <div v-if="bestScoreMap[l.id] !== undefined" class="qb-best">
+                        <div :class="['qb-score', bestScoreMap[l.id] >= quizMap[l.id].passingScore ? 'score-pass' : 'score-fail']">
+                          {{ bestScoreMap[l.id] }}<span class="score-unit">/100</span>
+                        </div>
+                        <div class="qb-best-label">Điểm cao nhất</div>
+                      </div>
+                    </div>
+
+                    <!-- Lịch sử làm bài (nếu có) -->
+                    <div v-if="attemptHistoryMap[l.id]?.length" class="qb-history">
+                      <div class="qbh-title">Lịch sử:</div>
+                      <div class="qbh-list">
                       <span v-for="(att, ai) in attemptHistoryMap[l.id].slice(0,5)" :key="att.id"
                             :class="['qbh-chip', att.passed ? 'chip-pass' : 'chip-fail']"
                             @click="viewAttemptResult(att.id)"
                             title="Xem kết quả">
                         Lần {{ ai+1 }}: {{ att.score }}%
                       </span>
+                      </div>
                     </div>
+
+                    <button class="btn-start-quiz" @click.stop="startQuiz(l.id)"
+                            :disabled="quizLoading === l.id">
+                      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                      {{ quizLoading===l.id ? 'Đang tải...' : (bestScoreMap[l.id] !== undefined ? 'Làm lại quiz' : 'Bắt đầu quiz') }}
+                    </button>
                   </div>
 
-                  <button class="btn-start-quiz" @click.stop="startQuiz(l.id)"
-                          :disabled="quizLoading === l.id">
-                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                    {{ quizLoading===l.id ? 'Đang tải...' : (bestScoreMap[l.id] !== undefined ? 'Làm lại quiz' : 'Bắt đầu quiz') }}
-                  </button>
-                </div>
-
-                <!-- ── LESSON ACTIONS ──────────────────── -->
-                <div v-if="isEnrolled" class="lesson-actions">
-                  <button v-if="!isDone(l.id)"
-                          @click.stop="markComplete(l.id)"
-                          :disabled="marking===l.id"
-                          class="btn-complete">
-                    <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-                    <span>{{ marking===l.id ? 'Đang lưu...' : 'Đánh dấu hoàn thành' }}</span>
-                  </button>
-                  <button v-else
-                          @click.stop="unmarkComplete(l.id)"
-                          :disabled="marking===l.id"
-                          class="btn-unmark">
-                    <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                    <span>{{ marking===l.id ? '...' : 'Bỏ hoàn thành' }}</span>
-                  </button>
+                  <!-- ── LESSON ACTIONS ──────────────────── -->
+                  <div v-if="isEnrolled && !auth.isAdmin" class="lesson-actions">
+                    <button v-if="!isDone(l.id)"
+                            @click.stop="markComplete(l.id)"
+                            :disabled="marking===l.id"
+                            class="btn-complete">
+                      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                      <span>{{ marking===l.id ? 'Đang lưu...' : 'Đánh dấu hoàn thành' }}</span>
+                    </button>
+                    <button v-else
+                            @click.stop="unmarkComplete(l.id)"
+                            :disabled="marking===l.id"
+                            class="btn-unmark">
+                      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      <span>{{ marking===l.id ? '...' : 'Bỏ hoàn thành' }}</span>
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
 
+            </div>
           </div>
         </div>
-      </div>
-      <!-- Review section -->
-      <CourseReview
-          :course-id="course.id"
-          :is-enrolled="isEnrolled"
-          @stats-updated="s => courseAvgRating = s.avgRating"
+        <!-- Review section -->
+        <CourseReview
+            :course-id="course.id"
+            :is-enrolled="isEnrolled"
+            @stats-updated="s => courseAvgRating = s.avgRating"
+        />
+
+      </template>
+
+      <!-- ── QUIZ PLAYER MODAL ──────────────────────────── -->
+      <QuizPlayer
+          v-if="activeQuiz && showPlayer"
+          :quiz="activeQuiz"
+          :lessonId="activeQuizLessonId"
+          @close="showPlayer = false"
+          @done="onQuizDone"
       />
 
-    </template>
+      <!-- ── QUIZ RESULT MODAL ──────────────────────────── -->
+      <QuizResult
+          v-if="quizResult && showResult"
+          :result="quizResult"
+          :choicesMap="activeChoicesMap"
+          :canRetry="canRetryActive"
+          @close="showResult = false"
+          @retry="retryQuiz"
+      />
 
-    <!-- ── QUIZ PLAYER MODAL ──────────────────────────── -->
-    <QuizPlayer
-        v-if="activeQuiz && showPlayer"
-        :quiz="activeQuiz"
-        :lessonId="activeQuizLessonId"
-        @close="showPlayer = false"
-        @done="onQuizDone"
-    />
+      <div v-if="toast" :class="['toast', toast.type]">{{ toast.msg }}</div>
+    </div>
 
-    <!-- ── QUIZ RESULT MODAL ──────────────────────────── -->
-    <QuizResult
-        v-if="quizResult && showResult"
-        :result="quizResult"
-        :choicesMap="activeChoicesMap"
-        :canRetry="canRetryActive"
-        @close="showResult = false"
-        @retry="retryQuiz"
-    />
-
-    <div v-if="toast" :class="['toast', toast.type]">{{ toast.msg }}</div>
+    <!-- Không tìm thấy khóa học -->
+    <div v-if="!loading && !course" class="page not-found-state">
+      <div style="text-align:center;padding:4rem 1rem">
+        <div style="font-size:3rem;margin-bottom:1rem">😕</div>
+        <h2 style="margin-bottom:.5rem">Không tìm thấy khóa học</h2>
+        <p style="color:var(--muted);margin-bottom:1.5rem">Khóa học không tồn tại hoặc đã bị xóa.</p>
+        <router-link to="/courses" class="btn btn-accent">← Quay lại danh sách</router-link>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, reactive, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import api from '../services/api'
 import { useAuthStore } from '../stores/auth'
+import { useCartStore } from '../stores/cart'
 import QuizPlayer from '../components/QuizPlayer.vue'
 import QuizResult from '../components/QuizResult.vue'
 import VideoPlayer from '../components/VideoPlayer.vue'
 import CourseReview from '../components/CourseReview.vue'
+import LessonQA    from '../components/LessonQA.vue'
 
-const route = useRoute()
-const auth  = useAuthStore()
+const route     = useRoute()
+const router    = useRouter()
+const auth      = useAuthStore()
+const cartStore = useCartStore()
 
 // ── Core state ────────────────────────────────────────────
 const course     = ref(null)
 const lessons    = ref([])
 const loading    = ref(true)
 const enrolling  = ref(false)
-const isEnrolled = ref(false)
+const isEnrolled     = ref(false)
+const paying          = ref(false)
+
+function formatPrice(price) {
+  if (!price || price === 0) return 'Miễn phí'
+  return new Intl.NumberFormat('vi-VN', { style:'currency', currency:'VND' }).format(price)
+}
+
+// ── Cart (cartStore) ──────────────────────────────────────────
+const inCart = computed(() => cartStore.has(Number(route.params.id)))
+
+function toggleCart() {
+  if (!course.value) return
+  if (cartStore.has(Number(route.params.id))) {
+    cartStore.remove(Number(route.params.id))
+    showToast('Đã xóa khỏi giỏ hàng')
+  } else {
+    cartStore.add(course.value)
+    showToast('✅ Đã thêm vào giỏ hàng!')
+  }
+}
+
+// ── Wishlist ──────────────────────────────────────────────
+const wishSet2 = ref(new Set(JSON.parse(localStorage.getItem('wl') || '[]').map(Number)))
+const inWish   = computed(() => wishSet2.value.has(Number(route.params.id)))
+function toggleWish() {
+  const id = Number(route.params.id)
+  if (wishSet2.value.has(id)) {
+    wishSet2.value.delete(id)
+    showToast('Đã xóa khỏi yêu thích')
+  } else {
+    wishSet2.value.add(id)
+    showToast('❤️ Đã thêm vào yêu thích!')
+  }
+  localStorage.setItem('wl', JSON.stringify([...wishSet2.value]))
+  window.dispatchEvent(new Event('localStorageUpdated'))
+}
+const courseAvgRating  = ref(null)
+const eligibility      = ref(null)   // { eligible, allLessonsDone, allQuizPassed, passedQuizzes, totalQuizzes, completedLessons, totalLessons }
 const expandedId = ref(null)
 const marking    = ref(null)
 const toast      = ref(null)
@@ -277,6 +372,10 @@ const canRetryActive   = ref(true)
 const icons = ['🖥️','📐','🔬','📊','🎨','⚙️','🌐','📱','🤖','🧮']
 const courseIcon = computed(() => icons[route.params.id % icons.length])
 const isDone = id => progress.completedLessonIds.includes(id)
+// INSTRUCTOR/ADMIN có thể xem nội dung mà không cần enroll
+// Instructor chỉ được xem full content của khóa HỌC DO MÌNH TẠO
+const isOwnCourse    = computed(() => auth.isInstructor && course.value?.instructor === auth.user?.username)
+const canViewContent = computed(() => isEnrolled.value || auth.isAdmin || isOwnCourse.value)
 
 // ── Helpers ───────────────────────────────────────────────
 function showToast(m, t='success') { toast.value={msg:m,type:t}; setTimeout(()=>toast.value=null,3500) }
@@ -291,12 +390,27 @@ function applyProgress(d) {
 
 // ── Data fetching ─────────────────────────────────────────
 async function fetchCourse() {
-  const [cr, lr] = await Promise.all([
-    api.get(`/courses/${route.params.id}`),
-    api.get(`/lessons/course/${route.params.id}`)
-  ])
-  course.value  = cr.data
-  lessons.value = lr.data || []
+  try {
+    const [cr, lr] = await Promise.all([
+      api.get(`/courses/${route.params.id}`),
+      api.get(`/lessons/course/${route.params.id}`)
+    ])
+    course.value  = cr.data
+    const rawLessons = lr.data
+    lessons.value = Array.isArray(rawLessons) ? rawLessons : []
+  } catch (e) {
+    console.error('[CourseDetail] fetchCourse error:', e)
+    course.value = null
+  }
+}
+
+
+async function fetchEligibility() {
+  if (!isEnrolled.value) return
+  try {
+    const r = await api.get(`/certificates/eligibility?userId=${auth.user?.id}&courseId=${route.params.id}`)
+    eligibility.value = r.data
+  } catch {}
 }
 
 async function checkEnrolled() {
@@ -316,9 +430,10 @@ async function fetchProgress() {
 
 // Lấy quiz metadata cho tất cả bài học (gọi sau khi enroll)
 async function fetchAllQuizMeta() {
-  if (!isEnrolled.value || !lessons.value.length) return
+  const ls = Array.isArray(lessons.value) ? lessons.value : []
+  if ((!isEnrolled.value && !auth.isAdmin && !isOwnCourse.value) || !ls.length) return
   await Promise.allSettled(
-      lessons.value.map(l => fetchQuizMeta(l.id))
+      ls.map(l => fetchQuizMeta(l.id))
   )
 }
 
@@ -335,9 +450,10 @@ async function fetchQuizMeta(lessonId) {
 async function fetchAttemptHistory(lessonId, quizId) {
   try {
     const r = await api.get(`/quizzes/${quizId}/attempts?userId=${auth.user?.id}`)
-    attemptHistoryMap.value = { ...attemptHistoryMap.value, [lessonId]: r.data }
-    if (r.data.length) {
-      const best = Math.max(...r.data.map(a => a.score))
+    const attempts = Array.isArray(r.data) ? r.data : []
+    attemptHistoryMap.value = { ...attemptHistoryMap.value, [lessonId]: attempts }
+    if (attempts.length) {
+      const best = Math.max(...attempts.map(a => a.score ?? 0))
       bestScoreMap.value = { ...bestScoreMap.value, [lessonId]: best }
     }
   } catch {}
@@ -345,22 +461,41 @@ async function fetchAttemptHistory(lessonId, quizId) {
 
 // ── Enroll ────────────────────────────────────────────────
 async function enroll() {
+  // Khóa có phí → tạo link thanh toán VNPay
+  if (course.value && !course.value.isFree && course.value.price > 0) {
+    paying.value = true
+    try {
+      const r = await api.post(`/payment/create?courseId=${route.params.id}`)
+      router.push({ path: '/payment/confirm', query: {
+          txnRef:      r.data.txnRef,
+          amount:      r.data.amount,
+          courseId:    String(r.data.courseId),
+          courseTitle: r.data.courseTitle
+        }})
+    } catch (pe) {
+      showToast('Lỗi tạo thanh toán: ' + (pe.response?.data?.error || pe.message), 'error')
+      paying.value = false
+    }
+    return
+  }
+  // Khóa miễn phí
   enrolling.value = true
   try {
-    await api.post(`/enrollments/enroll?userId=${auth.user?.id}&courseId=${route.params.id}`)
+    await api.post(`/enrollments/enroll?courseId=${route.params.id}`)
     isEnrolled.value = true
     await fetchProgress()
     await fetchAllQuizMeta()
-    showToast('🎉 Đăng ký thành công!')
-  } catch(e) { showToast(e.response?.data?.error||'Thất bại!', 'error') }
-  finally { enrolling.value = false }
+    showToast('Đăng ký thành công! Chúc bạn học tốt 🎉')
+  } catch (e) {
+    showToast(e.response?.data?.error || 'Lỗi đăng ký!', 'error')
+  } finally { enrolling.value = false }
 }
 
 // ── Progress actions ──────────────────────────────────────
 async function markComplete(lessonId) {
   marking.value = lessonId
   try {
-    const r = await api.post(`/progress/complete?userId=${auth.user?.id}&lessonId=${lessonId}`)
+    const r = await api.post(`/progress/complete?lessonId=${lessonId}`)
     applyProgress(r.data)
     showToast(r.data.courseCompleted ? '🎉 Hoàn thành khóa học!' : `✅ (${r.data.completedLessons}/${r.data.totalLessons} bài)`)
   } catch(e) { showToast(e.response?.data?.error||'Lỗi!', 'error') }
@@ -370,7 +505,7 @@ async function markComplete(lessonId) {
 async function unmarkComplete(lessonId) {
   marking.value = lessonId
   try {
-    const r = await api.delete(`/progress/complete?userId=${auth.user?.id}&lessonId=${lessonId}`)
+    const r = await api.delete(`/progress/complete?lessonId=${lessonId}`)
     applyProgress(r.data)
     showToast('↩ Đã bỏ đánh dấu')
   } catch(e) { showToast(e.response?.data?.error||'Lỗi!', 'error') }
@@ -385,7 +520,7 @@ async function startQuiz(lessonId) {
     activeQuiz.value = r.data
     activeQuizLessonId.value = lessonId
     const map = {}
-    r.data.questions.forEach(q => { map[q.id] = q.choices })
+    ;(r.data.questions || []).forEach(q => { map[q.id] = q.choices || [] })
     activeChoicesMap.value = map
     const quiz = quizMap.value[lessonId]
     if (quiz?.maxAttempts) {
@@ -442,10 +577,16 @@ function retryQuiz() {
 // ── Mount ─────────────────────────────────────────────────
 onMounted(async () => {
   loading.value = true
-  await Promise.all([fetchCourse(), checkEnrolled()])
-  await fetchProgress()
-  await fetchAllQuizMeta()
-  loading.value = false
+  try {
+    await Promise.all([fetchCourse(), checkEnrolled()])
+    await fetchEligibility()
+    await fetchProgress()
+    await fetchAllQuizMeta()
+  } catch (e) {
+    console.error('[CourseDetail] onMounted error:', e)
+  } finally {
+    loading.value = false
+  }
 })
 </script>
 
@@ -614,4 +755,46 @@ onMounted(async () => {
 .toast.error   { background:var(--red-light);   color:var(--red);   border-color:#fca5a5; }
 @keyframes toastIn { from{transform:translateX(110%);opacity:0} to{transform:translateX(0);opacity:1} }
 .badge-star { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+
+.course-price-box { display:flex; align-items:baseline; gap:.5rem; margin-bottom:.6rem; }
+.price-label  { font-size:.75rem; color:var(--muted); }
+.price-amount { font-size:1.35rem; font-weight:800; color:var(--accent); }
+.price-amount.free { color:var(--green); font-size:1.1rem; }
+.btn-buy { background:linear-gradient(135deg, #2563eb, #7c3aed) !important;
+  box-shadow:0 2px 12px rgba(124,58,237,.35) !important; }
+.btn-buy:hover:not(:disabled) { opacity:.9; transform:translateY(-1px); }
+
+.btn-cart { background:var(--surface); border:2px solid var(--accent); color:var(--accent);
+  width:100%; margin-top:.4rem; padding:.55rem; border-radius:10px;
+  font-size:.86rem; font-weight:700; cursor:pointer; transition:all .15s; font-family:inherit; }
+.btn-cart:hover    { background:var(--accent-light); }
+.btn-cart.in-cart  { background:var(--accent); color:#fff; }
+.hero-stats { display:flex; flex-wrap:wrap; gap:.6rem; margin-top:.4rem; }
+.hstat      { font-size:.78rem; color:var(--muted); display:flex; align-items:center; gap:.2rem; }
+.hstat strong { color:var(--accent); font-weight:700; }
+/* ── Hero Action redesign ── */
+.hero-action { display:flex; flex-direction:column; gap:.6rem; min-width:220px; max-width:260px; }
+.action-price { margin-bottom:.2rem; }
+.ap-label  { display:block; font-size:.73rem; color:var(--muted); margin-bottom:.15rem; }
+.ap-amount { font-size:1.7rem; font-weight:900; color:var(--accent); line-height:1; }
+.ap-free   { font-size:1.05rem; font-weight:700; color:var(--green); }
+.btn-action {
+  display:flex; align-items:center; justify-content:center; gap:.4rem;
+  width:100%; padding:.62rem 1rem; border-radius:10px;
+  font-size:.88rem; font-weight:700; cursor:pointer; border:none;
+  font-family:inherit; transition:all .15s;
+}
+.btn-action.primary { background:linear-gradient(135deg,#2563eb,#7c3aed); color:#fff;
+  box-shadow:0 3px 12px rgba(124,58,237,.3); }
+.btn-action.primary:hover:not(:disabled) { opacity:.9; transform:translateY(-1px); }
+.btn-action.primary:disabled { opacity:.5; cursor:not-allowed; transform:none; }
+.btn-action.secondary { background:var(--surface); color:var(--accent);
+  border:2px solid var(--accent); }
+.btn-action.secondary:hover { background:var(--accent-light); }
+.btn-action.secondary.in-cart { background:var(--accent); color:#fff; }
+.btn-action.wish { background:var(--surface); color:var(--muted);
+  border:1.5px solid var(--border); }
+.btn-action.wish:hover { border-color:#ef4444; color:#ef4444; background:var(--red-light); }
+.btn-action.wish.active { border-color:#ef4444; color:#ef4444; background:var(--red-light); }
+
 </style>
